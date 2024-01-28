@@ -21,7 +21,7 @@ IMG_SIZE = (256, 256)
 
 
 class SegFoodDataset(Dataset):
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, load_first_n: int | None = None):
         self.dir = root
         self.images_dir = self.dir / 'images'
         self.masks_dir = self.dir / 'masks'
@@ -32,12 +32,16 @@ class SegFoodDataset(Dataset):
 
         self.images_pt_paths = [self.images_dir / f'{name}.pt' for name in self.img_ids]
         self.masks_pt_paths = [self.masks_dir / f'{name}.pt' for name in self.img_ids]
+        if load_first_n:
+            self.images_pt_paths = self.images_pt_paths[:load_first_n]
+            self.masks_pt_paths = self.masks_pt_paths[:load_first_n]
 
         self.X: T.Tensor = T.empty((len(self.images_pt_paths), 3, *IMG_SIZE), dtype=T.float32)
-        self.y: T.Tensor = T.empty((len(self.masks_pt_paths), 1, *IMG_SIZE), dtype=T.long)
+        self.y: T.Tensor = T.empty((len(self.masks_pt_paths), 1, *IMG_SIZE), dtype=T.float32)
+
         for i in trange(len(self.images_pt_paths), desc='Loading data...'):
             self.X[i] = T.load(self.images_pt_paths[i])
-            self.y[i] = T.load(self.masks_pt_paths[i])
+            self.y[i] = T.load(self.masks_pt_paths[i]).float()
 
     def __len__(self) -> int:
         return len(self.images_pt_paths)

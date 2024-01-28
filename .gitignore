@@ -2,6 +2,9 @@
 
 /data/
 /temp/
+/logs/
+/test_*.png
+/augmentation.png
 
 ### Auto-generated ###
 
