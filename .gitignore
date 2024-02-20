@@ -5,6 +5,8 @@
 /logs/
 /test_*.png
 /augmentation.png
+/*.pth
+/models
 
 ### Auto-generated ###
 
