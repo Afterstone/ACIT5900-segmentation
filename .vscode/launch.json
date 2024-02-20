@@ -12,6 +12,13 @@
             "justMyCode": true
         },
         {
+            "name": "Download foodseg103",
+            "type": "python",
+            "request": "launch",
+            "module": "segmentation.datasets.foodseg103",
+            "justMyCode": true
+        },
+        {
             "name": "Train unet",
             "type": "python",
             "request": "launch",
