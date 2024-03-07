@@ -5,24 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Download seg_foog",
-            "type": "python",
-            "request": "launch",
-            "module": "segmentation.datasets.seg_food",
-            "justMyCode": true
-        },
-        {
             "name": "Download foodseg103",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "segmentation.datasets.foodseg103",
-            "justMyCode": true
-        },
-        {
-            "name": "Train unet",
-            "type": "python",
-            "request": "launch",
-            "module": "segmentation.train_unet",
             "justMyCode": true
         },
     ]
