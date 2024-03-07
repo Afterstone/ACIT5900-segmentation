@@ -28,6 +28,7 @@ scikit-image = "^0.22.0"
 clip = {git = "https://github.com/openai/CLIP.git"}
 open-clip-torch = "^2.24.0"
 iprogress = "^0.4"
+torchcam = "^0.4.0"
 
 
 [build-system]
