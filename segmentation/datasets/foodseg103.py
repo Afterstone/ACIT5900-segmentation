@@ -21,7 +21,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm  # type: ignore
 
 
-class SegFoodDataset(Dataset):
+class FoodSegDataset(Dataset):
     def __init__(self, _load_check: bool = True):
         super().__init__()
 
@@ -43,7 +43,7 @@ class SegFoodDataset(Dataset):
         train: bool = True,
         load_first_n: int | None = None,
         tensor_size: t.Tuple[int, int] = (256, 256),
-    ) -> SegFoodDataset:
+    ) -> FoodSegDataset:
         dataset = cls(_load_check=False)
         dataset.split_name = 'train' if train else 'test'
 
@@ -110,7 +110,7 @@ class SegFoodDataset(Dataset):
         return dataset
 
     @classmethod
-    def load_pickle(cls, folder: Path) -> SegFoodDataset:
+    def load_pickle(cls, folder: Path) -> FoodSegDataset:
         dataset = cls(_load_check=False)
         if not folder.exists():
             raise ValueError(f'Folder {folder} does not exist')
@@ -202,16 +202,16 @@ def main(
             shutil.move(Path(tmp_dir) / 'FoodSeg103', dest_dir)
         print()
 
-    ds_train = SegFoodDataset.load_data(dest_dir_foodseg, train=True)
+    ds_train = FoodSegDataset.load_data(dest_dir_foodseg, train=True)
     ds_train.dump_pickle(dest_dir_foodseg / 'processed_train')
     del ds_train
-    ds_train = SegFoodDataset.load_pickle(dest_dir_foodseg / 'processed_train')
+    ds_train = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_train')
     del ds_train
 
-    ds_test = SegFoodDataset.load_data(dest_dir_foodseg, train=False)
+    ds_test = FoodSegDataset.load_data(dest_dir_foodseg, train=False)
     ds_test.dump_pickle(dest_dir_foodseg / 'processed_test')
     del ds_test
-    ds_test = SegFoodDataset.load_pickle(dest_dir_foodseg / 'processed_test')
+    ds_test = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_test')
 
 
 if __name__ == '__main__':
