@@ -9,7 +9,14 @@
             "type": "debugpy",
             "request": "launch",
             "module": "segmentation.datasets.foodseg103",
-            "justMyCode": true
+            "justMyCode": true,
+        },
+        {
+            "name": "test_gradcam_openclip_sam",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "segmentation.test_gradcam_openclip_sam",
+            "justMyCode": true,
         },
     ]
 }
