@@ -14,8 +14,11 @@ CLIP_MODEL_WEIGHTS_NAME: str = 'laion400m_s13b_b51k'
 # MODEL_NAME: str = 'RN101-quickgelu'
 # MODEL_WEIGHTS_NAME: str = 'openai'
 
-CLIP_CLASSIFIER_NAME: str = 'ViT-H-14'
-CLIP_CLASSIFIER_WEIGHTS_NAME: str = 'laion2b_s32b_b79k'
+# CLIP_CLASSIFIER_NAME: str = 'ViT-H-14'
+# CLIP_CLASSIFIER_WEIGHTS_NAME: str = 'laion2b_s32b_b79k'
+
+CLIP_CLASSIFIER_NAME: str = 'ViT-B-16'
+CLIP_CLASSIFIER_WEIGHTS_NAME: str = 'laion2b_s34b_b88k'
 
 TORCH_DEVICE: str | T.device = 'cuda' if T.cuda.is_available() else 'cpu'
 
