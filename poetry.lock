@@ -3767,6 +3767,28 @@ tests = ["autopep8", "flake8", "isort", "numpy", "pytest", "scipy (>=1.7.1)"]
 tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
+name = "types-pillow"
+version = "10.2.0.20240213"
+description = "Typing stubs for Pillow"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-Pillow-10.2.0.20240213.tar.gz", hash = "sha256:4800b61bf7eabdae2f1b17ade0d080709ed33e9f26a2e900e470e8b56ebe2387"},
+    {file = "types_Pillow-10.2.0.20240213-py3-none-any.whl", hash = "sha256:062c5a0f20301a30f2df4db583f15b3c2a1283a12518d1f9d81396154e12c1af"},
+]
+
+[[package]]
+name = "types-tqdm"
+version = "4.66.0.20240106"
+description = "Typing stubs for tqdm"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-tqdm-4.66.0.20240106.tar.gz", hash = "sha256:7acf4aade5bad3ded76eb829783f9961b1c2187948eaa6dd1ae8644dff95a938"},
+    {file = "types_tqdm-4.66.0.20240106-py3-none-any.whl", hash = "sha256:7459b0f441b969735685645a5d8480f7912b10d05ab45f99a2db8a8e45cb550b"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.9.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -3969,4 +3991,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3dcea84cfd1d569be2b008a6692f462af2076f01f38c77d60ee60f30b8c27966"
+content-hash = "f7d93b56eb5c763239445aa22a0f321a66e39a268f6c600cfa35cbe7f49ba80b"
