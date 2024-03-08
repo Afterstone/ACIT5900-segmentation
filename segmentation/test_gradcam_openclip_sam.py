@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -9,6 +10,7 @@ import torch as T
 import torchvision.transforms as TVT
 from open_clip import pretrained
 from PIL import Image
+from PIL.Image import Image as PIL_Image
 from scipy.ndimage import gaussian_filter
 from segment_anything import SamPredictor, sam_model_registry
 from tqdm import trange
@@ -99,13 +101,66 @@ def show_points(coords, labels, ax, marker_size=375):
                s=marker_size, edgecolor='white', linewidth=1.25)
 
 
+@dataclass
+class ClipClassifierResult:
+    texts: list[str]
+    probs: T.Tensor
+    indices: T.Tensor
+
+
+class ClipClassifier:
+    def __init__(
+        self,
+        model_name: str,
+        model_weights_name: str,
+        device: str | T.device = 'cuda',
+    ):
+        self.model_name = model_name
+        self.model_weights_name = model_weights_name
+        self.device = device
+
+        self.model, self.preprocessor, self.tokenizer = get_clip_model(
+            model_name,
+            model_weights_name,
+            device,
+        )
+
+        self.classes: list[str] = []
+        self.tokenized_text: T.Tensor = T.tensor([])
+        self.text_features: T.Tensor = T.tensor([])
+        self.text_features_normed: T.Tensor = T.tensor([])
+
+    def set_classes(self, classes: list[str]) -> None:
+        self.classes = classes
+        self.tokenized_text = self.tokenizer(classes)
+        self.text_features = self.model.encode_text(self.tokenized_text.cuda())  # type: ignore
+        self.text_features_normed = self.text_features / self.text_features.norm(dim=-1, keepdim=True)
+
+    def classify(self, image: PIL_Image, top_k: int) -> ClipClassifierResult:
+        tensor = self.preprocessor(image).unsqueeze(0).cuda()  # type: ignore
+        image_features = self.model.encode_image(tensor)
+        image_features_normed = image_features / image_features.norm(dim=-1, keepdim=True)
+
+        text_probs = self.text_features_normed @ image_features_normed.T
+        topk_indices = text_probs.squeeze().argsort(descending=True)[:top_k]
+        topk_text_probs = text_probs.squeeze()[topk_indices]
+
+        return ClipClassifierResult(
+            texts=[self.classes[i] for i in topk_indices],
+            probs=topk_text_probs.cpu().detach(),
+            indices=topk_indices.cpu().detach(),
+        )
+
+
 def main(
     clip_model_name: str,
     clip_model_weights_name: str,
+    clip_model_cls_name: str,
+    clip_model_cls_weights_name: str,
     sam_checkpoint: str,
     sam_model_type: str,
     foodseg103_root: Path,
-    prefix: str = "",
+    prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
 ) -> None:
     print("Loading dataset...")
@@ -118,12 +173,14 @@ def main(
     sam_predictor = get_sam_model(sam_checkpoint=sam_checkpoint, sam_model_type=sam_model_type, device=device)
 
     texts = ds_test.category_df['category'].tolist()
-    tokenized_text = clip_tokenizer([f"{prefix}{t}" for t in texts])
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
+        tokenized_text = clip_tokenizer([f"{prefix}{t}" for t in texts])
         text_features = clip_model.encode_text(tokenized_text.cuda())  # type: ignore
-        text_features_normed = text_features / text_features.norm(dim=-1, keepdim=True)
 
-    for idx in range(1, len(ds_test)):
+        clip_classifier = ClipClassifier(clip_model_cls_name, clip_model_cls_weights_name, device)
+        clip_classifier.set_classes(texts)
+
+    for idx in range(2, len(ds_test)):
         with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
             # Load the annotations.
             annotation_path = ds_test.annotations_paths[idx]
@@ -133,16 +190,12 @@ def main(
             # Load the image.
             image_path = ds_test.image_paths[idx]
             with Image.open(image_path) as img:
+                cls_res = clip_classifier.classify(img, 10)
+                top_texts = [texts[i] for i in cls_res.indices]
+                top_text_features = text_features[cls_res.indices]
+                topk_text_probs = cls_res.probs
+
                 image: T.Tensor = clip_preprocess(img).unsqueeze(0).cuda()  # type: ignore
-
-            image_features = clip_model.encode_image(image)  # type: ignore
-            image_features_normed = image_features / image_features.norm(dim=-1, keepdim=True)
-
-            text_probs = text_features_normed @ image_features_normed.T
-            topk_indices = text_probs.squeeze().argsort(descending=True)[:10]
-            topk_text_probs = text_probs.squeeze()[topk_indices]
-            top_text_features = text_features[topk_indices]
-            top_texts = [texts[i] for i in topk_indices]
 
         with T.cuda.amp.autocast():  # type: ignore
             attn_maps: dict[str, np.ndarray] = defaultdict()
@@ -220,8 +273,10 @@ def main(
 
 if __name__ == '__main__':
     main(
-        clip_model_name=config.MODEL_NAME,
-        clip_model_weights_name=config.MODEL_WEIGHTS_NAME,
+        clip_model_name=config.CLIP_MODEL_NAME,
+        clip_model_weights_name=config.CLIP_MODEL_WEIGHTS_NAME,
+        clip_model_cls_name=config.CLIP_CLASSIFIER_NAME,
+        clip_model_cls_weights_name=config.CLIP_CLASSIFIER_WEIGHTS_NAME,
         sam_checkpoint=config.SAM_CHECKPOINT,
         sam_model_type=config.MODEL_TYPE,
         device=config.TORCH_DEVICE,
