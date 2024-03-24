@@ -14,8 +14,8 @@ from segment_anything import SamPredictor, sam_model_registry  # type: ignore
 from tqdm import trange
 
 import segmentation.config as config
+import segmentation.xai as xai
 from segmentation.datasets import FoodSegDataset
-from segmentation.xai import gradCAM
 
 
 def print_pretrained_models():
@@ -114,16 +114,21 @@ class ClipAttentionMapper:
         self,
         model_name: str,
         model_weights_name: str,
+        cam_method: xai.BaseCam,
         classes: list[str] = [],
         device: str | T.device = 'cuda',
     ):
         self.model_name = model_name
         self.model_weights_name = model_weights_name
         self.device = device
+        self.cam_method = cam_method
 
         self.model, self.preprocessor, self.tokenizer = get_clip_model(model_name, model_weights_name, device)
-
         self._set_classes(classes)
+
+        # TODO: Variable layer selection? Inject selector?
+        self.model_visual = self.model.visual  # type: ignore
+        self.target_layer = self.model_visual.trunk.stages[3]  # type: ignore
 
     def _set_classes(self, classes: list[str]) -> None:
         self.classes: list[str] = classes
@@ -140,16 +145,18 @@ class ClipAttentionMapper:
     ) -> dict[str, np.ndarray]:
         img_tensor = self.preprocessor(image).unsqueeze(0).to(self.device)  # type: ignore
         attn_maps: dict[str, np.ndarray] = defaultdict()
-        model_visual = self.model.visual  # type: ignore
-        # TODO: Variable layer selection? Inject selector?
-        model_layer = model_visual.trunk.stages[3]  # type: ignore
+
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
-            # TODO: XAI method should be injected.
-            attn_map = gradCAM(model_visual, img_tensor, text_feature, layer=model_layer)
+            attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
             if normalize_attention:
                 attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
-            attn_maps[text] = attn_map.squeeze().detach().cpu().numpy()
+            attn_map_np = attn_map.squeeze().detach().cpu().numpy()
+
+            if np.isnan(attn_map_np).any():
+                raise ValueError(f"Encountered NaN in attention map for text: {text}")
+
+            attn_maps[text] = attn_map_np
 
         return attn_maps
 
@@ -157,6 +164,7 @@ class ClipAttentionMapper:
 def propose_points(attn_map: np.ndarray, n_points: int = 3, norm: int = 2) -> np.ndarray:
     if not attn_map.ndim == 2:
         raise ValueError("attn_map must be 2D")
+
     size = attn_map.shape
     probs = attn_map.ravel()
     probs -= probs.min()
@@ -209,25 +217,42 @@ def main(
     foodseg103_root: Path,
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
+    print_results_interval: int = 10,
 ) -> None:
     print("Loading dataset...")
     ds_test = FoodSegDataset.load_pickle(foodseg103_root / 'processed_test')
-    texts = ds_test.category_df['category'].tolist()
+    texts = [f"{prefix}{x}" for x in ds_test.category_df['category'].tolist()]
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
-        print(f"Loading CLIP model {clip_attn_mapper_config.model_name}...")
-        attn_mapper = ClipAttentionMapper(clip_attn_mapper_config.model_name,
-                                          clip_attn_mapper_config.model_weights_name, texts, device)
+        print(f"Loading CLIP model \"{clip_attn_mapper_config.model_name}\" with"
+              f"weights \"{clip_attn_mapper_config.model_weights_name}\"...")
+        attn_mapper = ClipAttentionMapper(
+            model_name=clip_attn_mapper_config.model_name,
+            model_weights_name=clip_attn_mapper_config.model_weights_name,
+            # cam_method=xai.GradCam(),
+            # cam_method=xai.LayerCam(),
+            cam_method=xai.GradCamPP(),
+            classes=texts,
+            device=device
+        )
 
-        # print(f"Loading CLIP classifier model {clip_cls_config.model_name}...")
-        # clip_classifier = ClipClassifier(clip_cls_config.model_name, clip_cls_config.model_weights_name, texts, device)
+        # print(f"Loading CLIP classifier model \"{clip_cls_config.model_name}\" with "
+        #       f"weights \"{clip_cls_config.model_weights_name}\"...")
+        # clip_classifier = ClipClassifier(
+        #     model_name=clip_cls_config.model_name,
+        #     model_weights_name=clip_cls_config.model_weights_name,
+        #     classes=texts,
+        #     device=device
+        # )
 
-        print(f"Loading SAM model {sam_config.model_type}...")
+        print(f"Loading SAM model \"{sam_config.model_type}\" with checkpoint \"{sam_config.checkpoint}\"...")
         sam_predictor = get_sam_model(sam_checkpoint=sam_config.checkpoint,
                                       sam_model_type=sam_config.model_type, device=device)
 
+    pixel_accs = defaultdict(list)
     ious = defaultdict(list)
-    for idx in trange(0, len(ds_test)):
+    progbar = trange(0, len(ds_test))
+    for idx in progbar:
         # Load the annotations.
         with Image.open(ds_test.annotations_paths[idx]) as img:
             ann_tensor = T.tensor(np.array(img))
@@ -249,7 +274,11 @@ def main(
                 top_texts = [texts[i] for i in indices_list]
 
             with T.cuda.amp.autocast():  # type: ignore
-                attn_maps = attn_mapper.get_attention_maps(img, top_texts, top_text_features)
+                try:
+                    attn_maps = attn_mapper.get_attention_maps(img, top_texts, top_text_features)
+                except ValueError:
+                    print(f"Encountered NaN when getting attention map for image {image_path}")
+                    continue
 
         image_sam = (image_np.copy() * 255.0).astype(np.uint8)
         sam_predictor.set_image(image_sam)
@@ -272,27 +301,33 @@ def main(
             annotation_bool = annotation > 0
             annotation_bool = annotation_bool.ravel()
 
+            index = indices_list[i]
+
             intersection = T.logical_and(best_mask_tensor, annotation_bool)
             union = T.logical_or(best_mask_tensor, annotation_bool)
-            iou = T.true_divide(intersection.sum(), union.sum())
+            ious[index].append(T.true_divide(intersection.sum(), union.sum()).item())
 
-            ious[indices_list[i]].append(iou.item())
+            pixel_accs[index].append((best_mask_tensor == annotation_bool).float().mean().item())
 
-            if idx > 0 and idx % 100 == 0:
-                means = []
+            if idx > 0 and idx % print_results_interval == 0:
+                iou_means = []
                 for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
-                    means.append(np.mean(iou_list))
-                    print(f"Class {i: 3d}: {means[-1]:.4f}")
-                print("-"*10)
-                print(f"mIOU: {np.mean(means):.4f}")
-                print()
+                    iou_means.append(np.mean(iou_list))
+                pixel_acc_means = []
+                for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
+                    pixel_acc_means.append(np.mean(acc_list))
+                progbar.set_postfix(mIOU=f"{np.mean(iou_means):.4f}", aAcc=f"{np.mean(pixel_acc_means):.4f}")
 
-    means = []
+    iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
-        means.append(np.mean(iou_list))
-        print(f"Class {i: 3d}: {means[-1]:.4f}")
+        iou_means.append(np.mean(iou_list))
+    pixel_acc_means = []
+    for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
+        pixel_acc_means.append(np.mean(acc_list))
+
     print("-"*10)
-    print(f"mIOU: {np.mean(means):.4f}")
+    print(f"mIOU: {np.mean(iou_means):.4f}")
+    print(f"aAcc: {np.mean(pixel_acc_means):.4f}")
     print()
 
     # n_cols, n_rows = 3, len(attn_maps.keys())
@@ -349,4 +384,5 @@ if __name__ == '__main__':
         ),
         device=config.TORCH_DEVICE,
         foodseg103_root=config.FOODSEG103_ROOT,
+        print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
     )
