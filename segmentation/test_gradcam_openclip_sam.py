@@ -151,7 +151,12 @@ class ClipAttentionMapper:
             attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
             if normalize_attention:
                 attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
-            attn_maps[text] = attn_map.squeeze().detach().cpu().numpy()
+            attn_map_np = attn_map.squeeze().detach().cpu().numpy()
+
+            if np.isnan(attn_map_np).any():
+                raise ValueError(f"Encountered NaN in attention map for text: {text}")
+
+            attn_maps[text] = attn_map_np
 
         return attn_maps
 
@@ -159,6 +164,7 @@ class ClipAttentionMapper:
 def propose_points(attn_map: np.ndarray, n_points: int = 3, norm: int = 2) -> np.ndarray:
     if not attn_map.ndim == 2:
         raise ValueError("attn_map must be 2D")
+
     size = attn_map.shape
     probs = attn_map.ravel()
     probs -= probs.min()
@@ -263,7 +269,11 @@ def main(
                 top_texts = [texts[i] for i in indices_list]
 
             with T.cuda.amp.autocast():  # type: ignore
-                attn_maps = attn_mapper.get_attention_maps(img, top_texts, top_text_features)
+                try:
+                    attn_maps = attn_mapper.get_attention_maps(img, top_texts, top_text_features)
+                except ValueError:
+                    print(f"Encountered NaN when getting attention map for image {image_path}")
+                    continue
 
         image_sam = (image_np.copy() * 255.0).astype(np.uint8)
         sam_predictor.set_image(image_sam)
