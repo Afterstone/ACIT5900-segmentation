@@ -14,8 +14,8 @@ from segment_anything import SamPredictor, sam_model_registry  # type: ignore
 from tqdm import trange
 
 import segmentation.config as config
+import segmentation.xai as xai
 from segmentation.datasets import FoodSegDataset
-from segmentation.xai import BaseCam, GradCam
 
 
 def print_pretrained_models():
@@ -114,7 +114,7 @@ class ClipAttentionMapper:
         self,
         model_name: str,
         model_weights_name: str,
-        cam_method: BaseCam,
+        cam_method: xai.BaseCam,
         classes: list[str] = [],
         device: str | T.device = 'cuda',
     ):
@@ -222,7 +222,8 @@ def main(
         attn_mapper = ClipAttentionMapper(
             model_name=clip_attn_mapper_config.model_name,
             model_weights_name=clip_attn_mapper_config.model_weights_name,
-            cam_method=GradCam(),
+            # cam_method=xai.GradCam(),
+            cam_method=xai.LayerCam(),
             classes=texts,
             device=device
         )

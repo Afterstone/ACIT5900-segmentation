@@ -5,17 +5,17 @@ from segmentation.xai._base_cam import BaseCam
 from segmentation.xai._hooks import GradsAndActivationsHook
 
 
-def _gradCam(
+def _layerCam(
     model: T.nn.Module,
     input: T.Tensor,
     target: T.Tensor,
     layer: T.nn.Module,
 ) -> T.Tensor:
-    """Computes the Grad-CAM for a given input and target.
+    """Computes the LayerCAM for a given input and target.
 
     Sources:
     - Code: Adapted from https://github.com/kevinzakka/clip_playground/blob/main/CLIP_GradCAM_Visualization.ipynb.
-    - Paper: https://arxiv.org/abs/1610.02391
+    - Paper: https://ieeexplore.ieee.org/document/9462463
     """
     # Zero out any gradients at the input.
     if input.grad is not None:
@@ -39,17 +39,17 @@ def _gradCam(
 
         # Global average pool gradient across spatial dimension
         # to obtain importance weights.
-        w = grad.mean(dim=(2, 3), keepdim=True)
+        w = T.clamp(grad.mean(dim=(2, 3), keepdim=True), min=0)
         # Weighted combination of activation maps over channel
         # dimension.
         A_hat = T.sum(act * w, dim=1, keepdim=True)
         # We only want neurons with positive influence so we
         # clamp any negative ones.
-        gradcam = T.clamp(A_hat, min=0)
+        layer_cam = T.clamp(A_hat, min=0)
 
     # Resize gradcam to input resolution.
-    gradcam = F.interpolate(
-        gradcam,
+    layer_cam = F.interpolate(
+        layer_cam,
         input.shape[2:],
         mode='bicubic',
         align_corners=False)
@@ -58,9 +58,9 @@ def _gradCam(
     for name, param in model.named_parameters():
         param.requires_grad_(requires_grad[name])
 
-    return gradcam
+    return layer_cam
 
 
-class GradCam(BaseCam):
+class LayerCam(BaseCam):
     def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module) -> T.Tensor:
-        return _gradCam(model, input, target, layer)
+        return _layerCam(model, input, target, layer)
