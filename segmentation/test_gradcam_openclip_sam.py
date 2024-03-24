@@ -221,20 +221,23 @@ def main(
 ) -> None:
     print("Loading dataset...")
     ds_test = FoodSegDataset.load_pickle(foodseg103_root / 'processed_test')
-    texts = ds_test.category_df['category'].tolist()
+    texts = [f"{prefix}{x}" for x in ds_test.category_df['category'].tolist()]
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
-        print(f"Loading CLIP model {clip_attn_mapper_config.model_name}...")
+        print(f"Loading CLIP model \"{clip_attn_mapper_config.model_name}\" with"
+              f"weights \"{clip_attn_mapper_config.model_weights_name}\"...")
         attn_mapper = ClipAttentionMapper(
             model_name=clip_attn_mapper_config.model_name,
             model_weights_name=clip_attn_mapper_config.model_weights_name,
             # cam_method=xai.GradCam(),
-            cam_method=xai.LayerCam(),
+            # cam_method=xai.LayerCam(),
+            cam_method=xai.GradCamPP(),
             classes=texts,
             device=device
         )
 
-        # print(f"Loading CLIP classifier model {clip_cls_config.model_name}...")
+        # print(f"Loading CLIP classifier model \"{clip_cls_config.model_name}\" with "
+        #       f"weights \"{clip_cls_config.model_weights_name}\"...")
         # clip_classifier = ClipClassifier(
         #     model_name=clip_cls_config.model_name,
         #     model_weights_name=clip_cls_config.model_weights_name,
@@ -242,12 +245,14 @@ def main(
         #     device=device
         # )
 
-        print(f"Loading SAM model {sam_config.model_type}...")
+        print(f"Loading SAM model \"{sam_config.model_type}\" with checkpoint \"{sam_config.checkpoint}\"...")
         sam_predictor = get_sam_model(sam_checkpoint=sam_config.checkpoint,
                                       sam_model_type=sam_config.model_type, device=device)
 
+    pixel_accs = defaultdict(list)
     ious = defaultdict(list)
-    for idx in trange(0, len(ds_test)):
+    progbar = trange(0, len(ds_test))
+    for idx in progbar:
         # Load the annotations.
         with Image.open(ds_test.annotations_paths[idx]) as img:
             ann_tensor = T.tensor(np.array(img))
@@ -296,27 +301,33 @@ def main(
             annotation_bool = annotation > 0
             annotation_bool = annotation_bool.ravel()
 
+            index = indices_list[i]
+
             intersection = T.logical_and(best_mask_tensor, annotation_bool)
             union = T.logical_or(best_mask_tensor, annotation_bool)
-            iou = T.true_divide(intersection.sum(), union.sum())
+            ious[index].append(T.true_divide(intersection.sum(), union.sum()).item())
 
-            ious[indices_list[i]].append(iou.item())
+            pixel_accs[index].append((best_mask_tensor == annotation_bool).float().mean().item())
 
             if idx > 0 and idx % print_results_interval == 0:
-                means = []
+                iou_means = []
                 for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
-                    means.append(np.mean(iou_list))
-                    print(f"Class {i: 3d}: {means[-1]:.4f}")
-                print("-"*10)
-                print(f"mIOU: {np.mean(means):.4f}")
-                print()
+                    iou_means.append(np.mean(iou_list))
+                pixel_acc_means = []
+                for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
+                    pixel_acc_means.append(np.mean(acc_list))
+                progbar.set_postfix(mIOU=f"{np.mean(iou_means):.4f}", aAcc=f"{np.mean(pixel_acc_means):.4f}")
 
-    means = []
+    iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
-        means.append(np.mean(iou_list))
-        print(f"Class {i: 3d}: {means[-1]:.4f}")
+        iou_means.append(np.mean(iou_list))
+    pixel_acc_means = []
+    for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
+        pixel_acc_means.append(np.mean(acc_list))
+
     print("-"*10)
-    print(f"mIOU: {np.mean(means):.4f}")
+    print(f"mIOU: {np.mean(iou_means):.4f}")
+    print(f"aAcc: {np.mean(pixel_acc_means):.4f}")
     print()
 
     # n_cols, n_rows = 3, len(attn_maps.keys())
