@@ -1,7 +1,7 @@
 import torch as T
 
 
-class ActivationsHook:
+class GradsAndActivationsHook:
     """Attaches to a module and records its activations and gradients.
 
     Sources:

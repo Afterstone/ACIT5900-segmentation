@@ -2,7 +2,7 @@ import torch as T
 import torch.nn.functional as F
 
 from segmentation.xai._base_cam import BaseCam
-from segmentation.xai._hooks import ActivationsHook
+from segmentation.xai._hooks import GradsAndActivationsHook
 
 
 def _gradCAM(
@@ -29,7 +29,7 @@ def _gradCAM(
 
     # Attach a hook to the model at the desired layer.
     assert isinstance(layer, T.nn.Module)
-    with ActivationsHook(layer) as hook:
+    with GradsAndActivationsHook(layer) as hook:
         # Do a forward and backward pass.
         output = model(input)
         output.backward(target)
