@@ -30,3 +30,5 @@ MODEL_TYPE: str = "vit_b"
 
 
 FOODSEG103_ROOT: Path = Path('./data/FoodSeg103')
+
+PRINT_RESULTS_EVERY_N_STEPS: int = 10

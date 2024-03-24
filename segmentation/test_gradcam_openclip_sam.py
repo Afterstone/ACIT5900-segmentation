@@ -15,7 +15,7 @@ from tqdm import trange
 
 import segmentation.config as config
 from segmentation.datasets import FoodSegDataset
-from segmentation.xai import gradCAM
+from segmentation.xai import BaseCam, GradCam
 
 
 def print_pretrained_models():
@@ -114,16 +114,21 @@ class ClipAttentionMapper:
         self,
         model_name: str,
         model_weights_name: str,
+        cam_method: BaseCam,
         classes: list[str] = [],
         device: str | T.device = 'cuda',
     ):
         self.model_name = model_name
         self.model_weights_name = model_weights_name
         self.device = device
+        self.cam_method = cam_method
 
         self.model, self.preprocessor, self.tokenizer = get_clip_model(model_name, model_weights_name, device)
-
         self._set_classes(classes)
+
+        # TODO: Variable layer selection? Inject selector?
+        self.model_visual = self.model.visual  # type: ignore
+        self.target_layer = self.model_visual.trunk.stages[3]  # type: ignore
 
     def _set_classes(self, classes: list[str]) -> None:
         self.classes: list[str] = classes
@@ -140,13 +145,10 @@ class ClipAttentionMapper:
     ) -> dict[str, np.ndarray]:
         img_tensor = self.preprocessor(image).unsqueeze(0).to(self.device)  # type: ignore
         attn_maps: dict[str, np.ndarray] = defaultdict()
-        model_visual = self.model.visual  # type: ignore
-        # TODO: Variable layer selection? Inject selector?
-        model_layer = model_visual.trunk.stages[3]  # type: ignore
+
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
-            # TODO: XAI method should be injected.
-            attn_map = gradCAM(model_visual, img_tensor, text_feature, layer=model_layer)
+            attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
             if normalize_attention:
                 attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
             attn_maps[text] = attn_map.squeeze().detach().cpu().numpy()
@@ -209,6 +211,7 @@ def main(
     foodseg103_root: Path,
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
+    print_results_interval: int = 10,
 ) -> None:
     print("Loading dataset...")
     ds_test = FoodSegDataset.load_pickle(foodseg103_root / 'processed_test')
@@ -216,11 +219,21 @@ def main(
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
         print(f"Loading CLIP model {clip_attn_mapper_config.model_name}...")
-        attn_mapper = ClipAttentionMapper(clip_attn_mapper_config.model_name,
-                                          clip_attn_mapper_config.model_weights_name, texts, device)
+        attn_mapper = ClipAttentionMapper(
+            model_name=clip_attn_mapper_config.model_name,
+            model_weights_name=clip_attn_mapper_config.model_weights_name,
+            cam_method=GradCam(),
+            classes=texts,
+            device=device
+        )
 
         # print(f"Loading CLIP classifier model {clip_cls_config.model_name}...")
-        # clip_classifier = ClipClassifier(clip_cls_config.model_name, clip_cls_config.model_weights_name, texts, device)
+        # clip_classifier = ClipClassifier(
+        #     model_name=clip_cls_config.model_name,
+        #     model_weights_name=clip_cls_config.model_weights_name,
+        #     classes=texts,
+        #     device=device
+        # )
 
         print(f"Loading SAM model {sam_config.model_type}...")
         sam_predictor = get_sam_model(sam_checkpoint=sam_config.checkpoint,
@@ -278,7 +291,7 @@ def main(
 
             ious[indices_list[i]].append(iou.item())
 
-            if idx > 0 and idx % 100 == 0:
+            if idx > 0 and idx % print_results_interval == 0:
                 means = []
                 for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
                     means.append(np.mean(iou_list))
@@ -349,4 +362,5 @@ if __name__ == '__main__':
         ),
         device=config.TORCH_DEVICE,
         foodseg103_root=config.FOODSEG103_ROOT,
+        print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
     )
