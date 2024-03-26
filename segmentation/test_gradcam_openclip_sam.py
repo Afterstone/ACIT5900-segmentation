@@ -128,7 +128,13 @@ class ClipAttentionMapper:
 
         # TODO: Variable layer selection? Inject selector?
         self.model_visual = self.model.visual  # type: ignore
-        self.target_layer = self.model_visual.trunk.stages[3]  # type: ignore
+        name_lower = model_name.lower()
+        if name_lower.startswith("rn"):
+            self.target_layer = self.model_visual.layer4  # type: ignore
+        elif name_lower.startswith("convnext"):
+            self.target_layer = self.model_visual.trunk.stages[3]  # type: ignore
+        else:
+            raise ValueError(f"Unsupported model name: {model_name}.")
 
     def _set_classes(self, classes: list[str]) -> None:
         self.classes: list[str] = classes
@@ -196,6 +202,20 @@ def get_sparse_annotation_masks(annotations: T.Tensor) -> dict[int, T.Tensor]:
 class ClipAttentionMapperConfig:
     model_name: str
     model_weights_name: str
+    xai_method: str
+
+    def __post_init__(self):
+        self.xai_method = self.xai_method.lower()
+
+    def get_xai_method(self) -> xai.BaseCam:
+        if self.xai_method == "gradcam":
+            return xai.GradCam()
+        elif self.xai_method == "gradcampp":
+            return xai.GradCamPP()
+        elif self.xai_method == "layercam":
+            return xai.LayerCam()
+        else:
+            raise ValueError(f"Unsupported XAI method: {self.xai_method}")
 
 
 @dataclass
@@ -225,13 +245,12 @@ def main(
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
         print(f"Loading CLIP model \"{clip_attn_mapper_config.model_name}\" with"
-              f"weights \"{clip_attn_mapper_config.model_weights_name}\"...")
+              f" weights \"{clip_attn_mapper_config.model_weights_name}\"...")
+
         attn_mapper = ClipAttentionMapper(
             model_name=clip_attn_mapper_config.model_name,
             model_weights_name=clip_attn_mapper_config.model_weights_name,
-            # cam_method=xai.GradCam(),
-            # cam_method=xai.LayerCam(),
-            cam_method=xai.GradCamPP(),
+            cam_method=clip_attn_mapper_config.get_xai_method(),
             classes=texts,
             device=device
         )
@@ -373,6 +392,7 @@ if __name__ == '__main__':
         clip_attn_mapper_config=ClipAttentionMapperConfig(
             model_name=config.CLIP_MODEL_NAME,
             model_weights_name=config.CLIP_MODEL_WEIGHTS_NAME,
+            xai_method=config.XAI_METHOD,
         ),
         clip_cls_config=ClipClassifierConfig(
             model_name=config.CLIP_CLASSIFIER_NAME,
