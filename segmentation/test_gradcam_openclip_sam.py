@@ -167,7 +167,7 @@ class ClipAttentionMapper:
         return attn_maps
 
 
-def propose_points(attn_map: np.ndarray, n_points: int = 3, norm: int = 2) -> np.ndarray:
+def propose_points(attn_map: np.ndarray, n_points: int = 3, norm: int = 3) -> np.ndarray:
     if not attn_map.ndim == 2:
         raise ValueError("attn_map must be 2D")
 
