@@ -6,6 +6,13 @@ from segmentation.xai._hooks import GradsAndActivationsHook
 
 
 class GradCamPP(BaseCam):
+    def __init__(
+        self,
+        eps: float = 1e-9,
+    ) -> None:
+        super().__init__()
+        self.eps = eps
+
     def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module) -> T.Tensor:
         """Computes the Grad-CAM++ for a given input and target.
 
@@ -33,7 +40,7 @@ class GradCamPP(BaseCam):
             g_cubed = g_sq * grad
             act_mean = act.mean(dim=(2, 3), keepdim=True)
 
-            alpha = g_sq / (2 * g_sq + act_mean * g_cubed)
+            alpha = g_sq / (2 * g_sq + act_mean * g_cubed + self.eps)
 
             w = (alpha * T.clamp(grad, min=0)).mean(dim=(2, 3), keepdim=True)
             A_hat = T.sum(act * w, dim=1, keepdim=True)
