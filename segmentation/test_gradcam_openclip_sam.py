@@ -117,11 +117,13 @@ class ClipAttentionMapper:
         cam_method: xai.BaseCam,
         classes: list[str] = [],
         device: str | T.device = 'cuda',
+        normalize_attention: bool = True,
     ):
         self.model_name = model_name
         self.model_weights_name = model_weights_name
         self.device = device
         self.cam_method = cam_method
+        self.normalize_attention = normalize_attention
 
         self.model, self.preprocessor, self.tokenizer = get_clip_model(model_name, model_weights_name, device)
         self._set_classes(classes)
@@ -147,7 +149,6 @@ class ClipAttentionMapper:
         image: PIL_Image,
         top_texts: list[str],
         top_text_features: T.Tensor,
-        normalize_attention: bool = True,
     ) -> dict[str, np.ndarray]:
         img_tensor = self.preprocessor(image).unsqueeze(0).to(self.device)  # type: ignore
         attn_maps: dict[str, np.ndarray] = defaultdict()
@@ -155,7 +156,7 @@ class ClipAttentionMapper:
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
             attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
-            if normalize_attention:
+            if self.normalize_attention:
                 attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
             attn_map_np = attn_map.squeeze().detach().cpu().numpy()
 
@@ -203,6 +204,7 @@ class ClipAttentionMapperConfig:
     model_name: str
     model_weights_name: str
     xai_method: str
+    normalize_attention: bool
 
     def __post_init__(self):
         self.xai_method = self.xai_method.lower()
@@ -252,7 +254,8 @@ def main(
             model_weights_name=clip_attn_mapper_config.model_weights_name,
             cam_method=clip_attn_mapper_config.get_xai_method(),
             classes=texts,
-            device=device
+            device=device,
+            normalize_attention=clip_attn_mapper_config.normalize_attention,
         )
 
         # print(f"Loading CLIP classifier model \"{clip_cls_config.model_name}\" with "
@@ -393,6 +396,7 @@ if __name__ == '__main__':
             model_name=config.CLIP_MODEL_NAME,
             model_weights_name=config.CLIP_MODEL_WEIGHTS_NAME,
             xai_method=config.XAI_METHOD,
+            normalize_attention=config.CLIP_NORMALIZE_ATTENTION,
         ),
         clip_cls_config=ClipClassifierConfig(
             model_name=config.CLIP_CLASSIFIER_NAME,

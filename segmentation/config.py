@@ -2,6 +2,8 @@ from pathlib import Path
 
 import torch as T
 
+CLIP_NORMALIZE_ATTENTION: bool = True
+
 XAI_METHOD: str = 'gradcam'
 # XAI_METHOD: str = 'gradcampp'
 # XAI_METHOD: str = 'layercam'
