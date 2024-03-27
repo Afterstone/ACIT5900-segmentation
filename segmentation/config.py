@@ -3,6 +3,8 @@ from pathlib import Path
 import torch as T
 
 CLIP_NORMALIZE_ATTENTION: bool = True
+SAM_PROPOSER_N_POINTS: int = 3
+SAM_PROPOSER_NORM: int = 3
 
 XAI_METHOD: str = 'gradcam'
 # XAI_METHOD: str = 'gradcampp'

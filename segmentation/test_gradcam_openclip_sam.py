@@ -168,7 +168,7 @@ class ClipAttentionMapper:
         return attn_maps
 
 
-def propose_points(attn_map: np.ndarray, n_points: int = 3, norm: int = 3) -> np.ndarray:
+def propose_points(attn_map: np.ndarray, n_points: int, norm: int) -> np.ndarray:
     if not attn_map.ndim == 2:
         raise ValueError("attn_map must be 2D")
 
@@ -230,6 +230,8 @@ class ClipClassifierConfig:
 class SamConfig:
     model_type: str
     checkpoint: str
+    proposer_n_points: int
+    proposer_norm: int
 
 
 def main(
@@ -306,7 +308,11 @@ def main(
         sam_predictor.set_image(image_sam)
         for i, (_, atmap) in enumerate(attn_maps.items()):
             atmap = np.array(Image.fromarray(atmap).resize((image_np.shape[1], image_np.shape[0])))  # type: ignore
-            input_points = propose_points(np.array(atmap), n_points=3)
+            input_points = propose_points(
+                np.array(atmap),
+                n_points=sam_config.proposer_n_points,
+                norm=sam_config.proposer_norm
+            )
             input_labels = np.array([1] * len(input_points))
 
             masks, scores, logits = sam_predictor.predict(
@@ -405,6 +411,8 @@ if __name__ == '__main__':
         sam_config=SamConfig(
             checkpoint=config.SAM_CHECKPOINT,
             model_type=config.MODEL_TYPE,
+            proposer_n_points=config.SAM_PROPOSER_N_POINTS,
+            proposer_norm=config.SAM_PROPOSER_NORM,
         ),
         device=config.TORCH_DEVICE,
         foodseg103_root=config.FOODSEG103_ROOT,
