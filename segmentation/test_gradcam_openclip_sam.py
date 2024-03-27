@@ -117,12 +117,19 @@ class ClipAttentionMapper:
         cam_method: xai.BaseCam,
         classes: list[str] = [],
         device: str | T.device = 'cuda',
-        normalize_attention: bool = True,
+        normalize_attention: str | None = "minmax",
+        epsilon: float = 1e-9,
     ):
         self.model_name = model_name
         self.model_weights_name = model_weights_name
         self.device = device
         self.cam_method = cam_method
+        self.epsilon = epsilon
+
+        if normalize_attention is not None:
+            normalize_attention = normalize_attention.lower()
+            if normalize_attention not in ["minmax", "standard"]:
+                raise ValueError(f"Unsupported normalization method: {normalize_attention}")
         self.normalize_attention = normalize_attention
 
         self.model, self.preprocessor, self.tokenizer = get_clip_model(model_name, model_weights_name, device)
@@ -156,8 +163,14 @@ class ClipAttentionMapper:
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
             attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
-            if self.normalize_attention:
-                attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
+            if self.normalize_attention is not None:
+                if self.normalize_attention == "minmax":
+                    attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
+                elif self.normalize_attention == "standard":
+                    attn_map = (attn_map - attn_map.mean()) / (attn_map.std() + self.epsilon)
+                    attn_map = T.clamp(attn_map, min=0)
+                else:
+                    raise ValueError(f"Unsupported normalization method: {self.normalize_attention}")
             attn_map_np = attn_map.squeeze().detach().cpu().numpy()
 
             if np.isnan(attn_map_np).any():
@@ -204,10 +217,15 @@ class ClipAttentionMapperConfig:
     model_name: str
     model_weights_name: str
     xai_method: str
-    normalize_attention: bool
+    normalize_attention: str | None
 
     def __post_init__(self):
         self.xai_method = self.xai_method.lower()
+
+        if self.normalize_attention is not None:
+            self.normalize_attention = self.normalize_attention.lower()
+            if self.normalize_attention not in ["minmax", "standard"]:
+                raise ValueError(f"Unsupported normalization method: {self.normalize_attention}")
 
     def get_xai_method(self) -> xai.BaseCam:
         if self.xai_method == "gradcam":
