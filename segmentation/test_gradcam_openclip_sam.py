@@ -126,6 +126,7 @@ class ClipAttentionMapper:
         self.cam_method = cam_method
         self.epsilon = epsilon
 
+        # TODO: Dependency inject normalization.
         if normalize_attention is not None:
             normalize_attention = normalize_attention.lower()
             if normalize_attention not in ["minmax", "standard"]:
@@ -164,9 +165,12 @@ class ClipAttentionMapper:
             text_feature = text_feature.clone().unsqueeze(0)
             attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
             if self.normalize_attention is not None:
+                # TODO: Percentile normalization.
+                # TODO: Dependency inject normalization.
                 if self.normalize_attention == "minmax":
-                    attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min())
+                    attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min() + self.epsilon)
                 elif self.normalize_attention == "standard":
+                    # TODO: Should set threshold by sigma.
                     attn_map = (attn_map - attn_map.mean()) / (attn_map.std() + self.epsilon)
                     attn_map = T.clamp(attn_map, min=0)
                 else:
@@ -181,18 +185,21 @@ class ClipAttentionMapper:
         return attn_maps
 
 
-def propose_points(attn_map: np.ndarray, n_points: int, norm: int) -> np.ndarray:
+def propose_points(attn_map: np.ndarray, n_points: int, norm: int, eps: float = 1e-9) -> np.ndarray:
     if not attn_map.ndim == 2:
         raise ValueError("attn_map must be 2D")
 
-    size = attn_map.shape
     probs = attn_map.ravel()
     probs -= probs.min()
-    probs = probs ** norm
+    if probs.sum() < eps:
+        probs = np.ones_like(probs)
+    else:
+        probs = probs ** norm
     probs /= probs.sum()  # type: ignore
 
     x = np.arange(len(probs))
     idx = np.random.choice(x, n_points, p=probs, replace=False)  # type: ignore
+    size = attn_map.shape
     idx_X = (idx // size[1])
     idx_y = (idx % size[1])
     input_points = np.array([(int(y), int(x)) for x, y in zip(idx_X, idx_y)])  # type: ignore
