@@ -1,60 +1,68 @@
+import typing as t
+from contextlib import ExitStack
+
 import torch as T
 import torch.nn.functional as F
 
-from segmentation.xai._base_cam import BaseCam
+from segmentation.xai._basecam import BaseCam, select_layers_range
 from segmentation.xai._hooks import GradsAndActivationsHook
 
 
 class LayerCam(BaseCam):
-    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module | list[T.nn.Module]) -> T.Tensor:
+    def __init__(
+        self,
+        layers_extractor: t.Callable[[T.nn.Module], t.List[T.nn.Module]],
+        layers_selector: t.Callable[[list[T.nn.Module]], list[T.nn.Module]] = select_layers_range(start=-2),
+    ):
+        super().__init__(
+            layers_extractor=layers_extractor,
+            layers_selector=layers_selector,
+        )
+
+    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor) -> T.Tensor:
         """Computes the LayerCAM for a given input and target.
 
         Sources:
         - Code: Adapted from https://github.com/kevinzakka/clip_playground/blob/main/CLIP_GradCAM_Visualization.ipynb.
         - Paper: https://ieeexplore.ieee.org/document/9462463
         """
-        if not isinstance(layer, T.nn.Module):
-            # TODO: Support multiple layers.
-            raise ValueError('LayerCam requires a single layer.')
 
-        # Zero out any gradients at the input.
         if input.grad is not None:
             input.grad.data.zero_()
 
-        # Disable gradient settings.
         requires_grad = {}
         for name, param in model.named_parameters():
             requires_grad[name] = param.requires_grad
             param.requires_grad_(False)
 
-        # Attach a hook to the model at the desired layer.
-        assert isinstance(layer, T.nn.Module)
-        with GradsAndActivationsHook(layer) as hook:
-            # Do a forward and backward pass.
+        layers = self._layers_selector(self._layers_extractor(model))
+        with ExitStack() as stack:
+            hooks = [stack.enter_context(GradsAndActivationsHook(layer)) for layer in layers]
+
             output = model(input)
             output.backward(target)
 
-            grad = hook.gradient.float()
-            act = hook.activation.float()
+            cams: list[T.Tensor] = []
+            for hook in hooks:
+                grad = hook.gradient.float()
+                act = hook.activation.float()
 
-            # Global average pool gradient across spatial dimension
-            # to obtain importance weights.
-            w = T.clamp(grad.mean(dim=(2, 3), keepdim=True), min=0)
-            # Weighted combination of activation maps over channel
-            # dimension.
-            A_hat = T.sum(act * w, dim=1, keepdim=True)
-            # We only want neurons with positive influence so we
-            # clamp any negative ones.
-            layer_cam = T.clamp(A_hat, min=0)
+                w = T.clamp(grad.mean(dim=(2, 3), keepdim=True), min=0)
+                A_hat = T.sum(act * w, dim=1, keepdim=True)
+                layer_cam = T.clamp(A_hat, min=0)
+                cams.append(layer_cam)
 
-        # Resize gradcam to input resolution.
-        layer_cam = F.interpolate(
-            layer_cam,
-            input.shape[2:],
-            mode='bicubic',
-            align_corners=False)
+            resized_cams: list[T.Tensor] = []
+            for cam in cams:
+                resized_cams.append(F.interpolate(
+                    cam,
+                    input.shape[2:],
+                    mode='bicubic',
+                    align_corners=False,
+                ))
 
-        # Restore gradient settings.
+            layer_cam = T.stack(resized_cams).mean(dim=0, keepdim=True).squeeze(0)
+
         for name, param in model.named_parameters():
             param.requires_grad_(requires_grad[name])
 
