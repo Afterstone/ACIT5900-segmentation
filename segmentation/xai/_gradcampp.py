@@ -13,13 +13,15 @@ class GradCamPP(BaseCam):
         super().__init__()
         self.eps = eps
 
-    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module) -> T.Tensor:
+    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module | list[T.nn.Module]) -> T.Tensor:
         """Computes the Grad-CAM++ for a given input and target.
 
         Sources:
         - Code: Adapted from https://github.com/kevinzakka/clip_playground/blob/main/CLIP_GradCAM_Visualization.ipynb.
         - Paper: https://arxiv.org/abs/1710.11063
         """
+        if not isinstance(layer, T.nn.Module):
+            raise ValueError('GradCamPP requires a single layer.')
         if input.grad is not None:
             input.grad.data.zero_()
 

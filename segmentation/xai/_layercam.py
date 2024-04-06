@@ -6,13 +6,17 @@ from segmentation.xai._hooks import GradsAndActivationsHook
 
 
 class LayerCam(BaseCam):
-    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module) -> T.Tensor:
+    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module | list[T.nn.Module]) -> T.Tensor:
         """Computes the LayerCAM for a given input and target.
 
         Sources:
         - Code: Adapted from https://github.com/kevinzakka/clip_playground/blob/main/CLIP_GradCAM_Visualization.ipynb.
         - Paper: https://ieeexplore.ieee.org/document/9462463
         """
+        if not isinstance(layer, T.nn.Module):
+            # TODO: Support multiple layers.
+            raise ValueError('LayerCam requires a single layer.')
+
         # Zero out any gradients at the input.
         if input.grad is not None:
             input.grad.data.zero_()
