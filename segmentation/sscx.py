@@ -1,5 +1,7 @@
+import typing as t
 from collections import defaultdict
 from dataclasses import dataclass
+from math import isnan
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,6 +18,12 @@ from tqdm import trange
 import segmentation.config as config
 import segmentation.xai as xai
 from segmentation.datasets import FoodSegDataset
+from segmentation.normalizers import (Identity, MinMaxNormalizer, Normalizer,
+                                      PercentileThresholder,
+                                      PolynomialStretcher,
+                                      SequentialNormalizer, SoftmaxNormalizer,
+                                      StandardNormalizer, Thresholder,
+                                      ToProbabilities, UniformIfInvalid)
 
 
 def print_pretrained_models():
@@ -117,7 +125,7 @@ class ClipAttentionMapper:
         cam_method: xai.BaseCam,
         classes: list[str] = [],
         device: str | T.device = 'cuda',
-        normalize_attention: str | None = "minmax",
+        normalizer: Normalizer = Identity(),
         epsilon: float = 1e-9,
     ):
         self.model_name = model_name
@@ -126,12 +134,7 @@ class ClipAttentionMapper:
         self.cam_method = cam_method
         self.epsilon = epsilon
 
-        # TODO: Dependency inject normalization.
-        if normalize_attention is not None:
-            normalize_attention = normalize_attention.lower()
-            if normalize_attention not in ["minmax", "standard"]:
-                raise ValueError(f"Unsupported normalization method: {normalize_attention}")
-        self.normalize_attention = normalize_attention
+        self.normalizer = normalizer
 
         self.model, self.preprocessor, self.tokenizer = get_clip_model(model_name, model_weights_name, device)
         self._set_classes(classes)
@@ -156,17 +159,7 @@ class ClipAttentionMapper:
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
             attn_map = self.cam_method(self.model_visual, img_tensor, text_feature)
-            if self.normalize_attention is not None:
-                # TODO: Percentile normalization.
-                # TODO: Dependency inject normalization.
-                if self.normalize_attention == "minmax":
-                    attn_map = (attn_map - attn_map.min()) / (attn_map.max() - attn_map.min() + self.epsilon)
-                elif self.normalize_attention == "standard":
-                    # TODO: Should set threshold by sigma.
-                    attn_map = (attn_map - attn_map.mean()) / (attn_map.std() + self.epsilon)
-                    attn_map = T.clamp(attn_map, min=0)
-                else:
-                    raise ValueError(f"Unsupported normalization method: {self.normalize_attention}")
+            attn_map = self.normalizer.normalize(attn_map)
             attn_map_np = attn_map.squeeze().detach().cpu().numpy()
 
             if np.isnan(attn_map_np).any():
@@ -177,17 +170,18 @@ class ClipAttentionMapper:
         return attn_maps
 
 
-def propose_points(attn_map: np.ndarray, n_points: int, norm: int, eps: float = 1e-9) -> np.ndarray:
+def propose_points(attn_map: np.ndarray, n_points: int) -> np.ndarray:
     if not attn_map.ndim == 2:
         raise ValueError("attn_map must be 2D")
 
     probs = attn_map.ravel()
+
+    # Resizing might have caused some negative values.
     probs -= probs.min()
-    if probs.sum() < eps:
-        probs = np.ones_like(probs)
-    else:
-        probs = probs ** norm
-    probs /= probs.sum()  # type: ignore
+    probs /= probs.sum()
+
+    if np.isnan(probs).any():
+        probs = np.ones_like(probs) / len(probs)
 
     x = np.arange(len(probs))
     idx = np.random.choice(x, n_points, p=probs, replace=False)  # type: ignore
@@ -216,15 +210,12 @@ class ClipAttentionMapperConfig:
     model_name: str
     model_weights_name: str
     xai_method: str
-    normalize_attention: str | None
+    normalize_attention: str
+    normalizer_norm: float
 
     def __post_init__(self):
         self.xai_method = self.xai_method.lower()
-
-        if self.normalize_attention is not None:
-            self.normalize_attention = self.normalize_attention.lower()
-            if self.normalize_attention not in ["minmax", "standard"]:
-                raise ValueError(f"Unsupported normalization method: {self.normalize_attention}")
+        self.normalize_attention = self.normalize_attention.lower()
 
     def get_xai_method(self) -> xai.BaseCam:
         def layers_extractor(model: T.nn.Module) -> list[T.nn.Module]:
@@ -246,8 +237,36 @@ class ClipAttentionMapperConfig:
             return xai.GradCamPP(layers_extractor=layers_extractor)
         elif self.xai_method == "layercam":
             return xai.LayerCam(layers_extractor=layers_extractor)
+        elif self.xai_method == "uniform":
+            return xai.UniformXai(layers_extractor=layers_extractor)
         else:
             raise ValueError(f"Unsupported XAI method: {self.xai_method}")
+
+    def get_normalization_method(self) -> Normalizer:
+        normalizer: Normalizer = Identity()
+        thresholder: Normalizer = Identity()
+        if self.normalize_attention == 'none':
+            pass
+        elif self.normalize_attention == "minmax":
+            normalizer = MinMaxNormalizer()
+            thresholder = Thresholder(0.5)
+        elif self.normalize_attention == "standard":
+            normalizer = StandardNormalizer()
+            thresholder = Thresholder(0.0)
+        elif self.normalize_attention == "softmax":
+            normalizer = SoftmaxNormalizer()
+        elif self.normalize_attention == "percentile":
+            thresholder = PercentileThresholder(0.95)
+        else:
+            raise ValueError(f"Unsupported normalization method: {self.normalize_attention}")
+
+        return SequentialNormalizer([
+            normalizer,
+            thresholder,
+            PolynomialStretcher(degree=self.normalizer_norm),
+            ToProbabilities(),
+            UniformIfInvalid(),
+        ])
 
 
 @dataclass
@@ -261,7 +280,6 @@ class SamConfig:
     model_type: str
     checkpoint: str
     proposer_n_points: int
-    proposer_norm: int
 
 
 @dataclass
@@ -293,7 +311,7 @@ def evaluate(
             cam_method=clip_attn_mapper_config.get_xai_method(),
             classes=texts,
             device=device,
-            normalize_attention=clip_attn_mapper_config.normalize_attention,
+            normalizer=clip_attn_mapper_config.get_normalization_method(),
         )
 
         # print(f"Loading CLIP classifier model \"{clip_cls_config.model_name}\" with "
@@ -347,7 +365,6 @@ def evaluate(
             input_points = propose_points(
                 np.array(atmap),
                 n_points=sam_config.proposer_n_points,
-                norm=sam_config.proposer_norm
             )
             input_labels = np.array([1] * len(input_points))
 
@@ -445,6 +462,7 @@ if __name__ == '__main__':
             model_weights_name=config.CLIP_MODEL_WEIGHTS_NAME,
             xai_method=config.XAI_METHOD,
             normalize_attention=config.CLIP_NORMALIZE_ATTENTION,
+            normalizer_norm=config.CLIP_NORMALIZER_NORM,
         ),
         clip_cls_config=ClipClassifierConfig(
             model_name=config.CLIP_CLASSIFIER_NAME,
@@ -454,7 +472,6 @@ if __name__ == '__main__':
             checkpoint=config.SAM_CHECKPOINT,
             model_type=config.MODEL_TYPE,
             proposer_n_points=config.SAM_PROPOSER_N_POINTS,
-            proposer_norm=config.SAM_PROPOSER_NORM,
         ),
         device=config.TORCH_DEVICE,
         foodseg103_root=config.FOODSEG103_ROOT,
