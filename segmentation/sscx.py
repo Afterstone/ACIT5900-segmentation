@@ -264,7 +264,13 @@ class SamConfig:
     proposer_norm: int
 
 
-def main(
+@dataclass
+class EvaluationResults:
+    mIoU: float
+    aAcc: float
+
+
+def evaluate(
     clip_attn_mapper_config: ClipAttentionMapperConfig,
     clip_cls_config: ClipClassifierConfig,
     sam_config: SamConfig,
@@ -272,7 +278,7 @@ def main(
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
-) -> None:
+) -> EvaluationResults:
     print("Loading dataset...")
     ds_test = FoodSegDataset.load_pickle(foodseg103_root / 'processed_test')
     texts = [f"{prefix}{x}" for x in ds_test.category_df['category'].tolist()]
@@ -379,6 +385,7 @@ def main(
     iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
         iou_means.append(np.mean(iou_list))
+
     pixel_acc_means = []
     for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
         pixel_acc_means.append(np.mean(acc_list))
@@ -387,6 +394,11 @@ def main(
     print(f"mIOU: {np.mean(iou_means):.4f}")
     print(f"aAcc: {np.mean(pixel_acc_means):.4f}")
     print()
+
+    return EvaluationResults(
+        mIoU=float(np.mean(iou_means)),
+        aAcc=float(np.mean(pixel_acc_means)),
+    )
 
     # n_cols, n_rows = 3, len(attn_maps.keys())
     # fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols*5, n_rows*5))
@@ -427,7 +439,7 @@ def main(
 
 
 if __name__ == '__main__':
-    main(
+    evaluate(
         clip_attn_mapper_config=ClipAttentionMapperConfig(
             model_name=config.CLIP_MODEL_NAME,
             model_weights_name=config.CLIP_MODEL_WEIGHTS_NAME,
