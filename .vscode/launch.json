@@ -12,10 +12,10 @@
             "justMyCode": true,
         },
         {
-            "name": "test_gradcam_openclip_sam",
+            "name": "Segmentation using SAM, CLIP and XAI",
             "type": "debugpy",
             "request": "launch",
-            "module": "segmentation.test_gradcam_openclip_sam",
+            "module": "segmentation.sscx",
             "justMyCode": true,
         },
     ]

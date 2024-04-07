@@ -1,19 +1,26 @@
+import typing as t
+
 import torch as T
 import torch.nn.functional as F
 
-from segmentation.xai._base_cam import BaseCam
+from segmentation.xai._basecam import BaseCam, select_layers_last
 from segmentation.xai._hooks import GradsAndActivationsHook
 
 
 class GradCamPP(BaseCam):
     def __init__(
         self,
+        layers_extractor: t.Callable[[T.nn.Module], t.List[T.nn.Module]],
+        layers_selector: t.Callable[[list[T.nn.Module]], list[T.nn.Module]] = select_layers_last(),
         eps: float = 1e-9,
     ) -> None:
-        super().__init__()
+        super().__init__(
+            layers_extractor=layers_extractor,
+            layers_selector=layers_selector,
+        )
         self.eps = eps
 
-    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor, layer: T.nn.Module) -> T.Tensor:
+    def __call__(self, model: T.nn.Module, input: T.Tensor, target: T.Tensor) -> T.Tensor:
         """Computes the Grad-CAM++ for a given input and target.
 
         Sources:
@@ -28,7 +35,7 @@ class GradCamPP(BaseCam):
             requires_grad[name] = param.requires_grad
             param.requires_grad_(False)
 
-        assert isinstance(layer, T.nn.Module)
+        layer = self._layers_selector(self._layers_extractor(model))[-1]
         with GradsAndActivationsHook(layer) as hook:
             output = model(input)
             output.backward(target)

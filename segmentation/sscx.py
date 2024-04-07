@@ -136,15 +136,7 @@ class ClipAttentionMapper:
         self.model, self.preprocessor, self.tokenizer = get_clip_model(model_name, model_weights_name, device)
         self._set_classes(classes)
 
-        # TODO: Variable layer selection? Inject selector?
         self.model_visual = self.model.visual  # type: ignore
-        name_lower = model_name.lower()
-        if name_lower.startswith("rn"):
-            self.target_layer = self.model_visual.layer4  # type: ignore
-        elif name_lower.startswith("convnext"):
-            self.target_layer = self.model_visual.trunk.stages[3]  # type: ignore
-        else:
-            raise ValueError(f"Unsupported model name: {model_name}.")
 
     def _set_classes(self, classes: list[str]) -> None:
         self.classes: list[str] = classes
@@ -163,7 +155,7 @@ class ClipAttentionMapper:
 
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
-            attn_map = self.cam_method(self.model_visual, img_tensor, text_feature, layer=self.target_layer)
+            attn_map = self.cam_method(self.model_visual, img_tensor, text_feature)
             if self.normalize_attention is not None:
                 # TODO: Percentile normalization.
                 # TODO: Dependency inject normalization.
@@ -235,12 +227,25 @@ class ClipAttentionMapperConfig:
                 raise ValueError(f"Unsupported normalization method: {self.normalize_attention}")
 
     def get_xai_method(self) -> xai.BaseCam:
+        def layers_extractor(model: T.nn.Module) -> list[T.nn.Module]:
+            if self.model_name.lower().startswith("rn"):
+                return [
+                    model.layer1,
+                    model.layer2,
+                    model.layer3,
+                    model.layer4,
+                ]
+            elif self.model_name.lower().startswith("convnext"):
+                return model.trunk.stages
+            else:
+                raise ValueError(f"Unsupported model name: {self.model_name}")
+
         if self.xai_method == "gradcam":
-            return xai.GradCam()
+            return xai.GradCam(layers_extractor=layers_extractor)
         elif self.xai_method == "gradcampp":
-            return xai.GradCamPP()
+            return xai.GradCamPP(layers_extractor=layers_extractor)
         elif self.xai_method == "layercam":
-            return xai.LayerCam()
+            return xai.LayerCam(layers_extractor=layers_extractor)
         else:
             raise ValueError(f"Unsupported XAI method: {self.xai_method}")
 
@@ -259,7 +264,13 @@ class SamConfig:
     proposer_norm: int
 
 
-def main(
+@dataclass
+class EvaluationResults:
+    mIoU: float
+    aAcc: float
+
+
+def evaluate(
     clip_attn_mapper_config: ClipAttentionMapperConfig,
     clip_cls_config: ClipClassifierConfig,
     sam_config: SamConfig,
@@ -267,7 +278,7 @@ def main(
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
-) -> None:
+) -> EvaluationResults:
     print("Loading dataset...")
     ds_test = FoodSegDataset.load_pickle(foodseg103_root / 'processed_test')
     texts = [f"{prefix}{x}" for x in ds_test.category_df['category'].tolist()]
@@ -374,6 +385,7 @@ def main(
     iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
         iou_means.append(np.mean(iou_list))
+
     pixel_acc_means = []
     for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
         pixel_acc_means.append(np.mean(acc_list))
@@ -382,6 +394,11 @@ def main(
     print(f"mIOU: {np.mean(iou_means):.4f}")
     print(f"aAcc: {np.mean(pixel_acc_means):.4f}")
     print()
+
+    return EvaluationResults(
+        mIoU=float(np.mean(iou_means)),
+        aAcc=float(np.mean(pixel_acc_means)),
+    )
 
     # n_cols, n_rows = 3, len(attn_maps.keys())
     # fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols*5, n_rows*5))
@@ -422,7 +439,7 @@ def main(
 
 
 if __name__ == '__main__':
-    main(
+    evaluate(
         clip_attn_mapper_config=ClipAttentionMapperConfig(
             model_name=config.CLIP_MODEL_NAME,
             model_weights_name=config.CLIP_MODEL_WEIGHTS_NAME,
