@@ -18,5 +18,12 @@
             "module": "segmentation.sscx",
             "justMyCode": true,
         },
+        {
+            "name": "Run Taguchi study",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "segmentation.run_taguchi_study",
+            "justMyCode": true,
+        },
     ]
 }
