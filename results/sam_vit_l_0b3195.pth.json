@@ -1,0 +1,226 @@
+[
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "layercam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "layercam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "layercam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [],
+    "mIoU": [],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "layercam"
+    }
+  }
+]
