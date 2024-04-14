@@ -292,14 +292,13 @@ def evaluate(
     clip_attn_mapper_config: ClipAttentionMapperConfig,
     clip_cls_config: ClipClassifierConfig,
     sam_config: SamConfig,
-    foodseg103_root: Path,
+    dataset: FoodSegDataset,
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
 ) -> EvaluationResults:
     print("Loading dataset...")
-    ds_test = FoodSegDataset.load_pickle(foodseg103_root / 'processed_test')
-    texts = [f"{prefix}{x}" for x in ds_test.category_df['category'].tolist()]
+    texts = [f"{prefix}{x}" for x in dataset.category_df['category'].tolist()]
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
         print(f"Loading CLIP model \"{clip_attn_mapper_config.model_name}\" with"
@@ -329,15 +328,15 @@ def evaluate(
 
     pixel_accs = defaultdict(list)
     ious = defaultdict(list)
-    progbar = trange(0, len(ds_test))
+    progbar = trange(0, len(dataset))
     for idx in progbar:
         # Load the annotations.
-        with Image.open(ds_test.annotations_paths[idx]) as img:
+        with Image.open(dataset.annotations_paths[idx]) as img:
             ann_tensor = T.tensor(np.array(img))
             ann_indices = [int(i) for i in extract_class_indices_from_annotations(ann_tensor.unsqueeze(0))]
             ann_mask_lookup = get_sparse_annotation_masks(ann_tensor.unsqueeze(0))
 
-        image_path = ds_test.image_paths[idx]
+        image_path = dataset.image_paths[idx]
         with Image.open(image_path) as img:
             img = img.convert("RGB").resize((256, 256))
             image_np = np.array(img).astype(np.float32) / 255.
@@ -474,6 +473,6 @@ if __name__ == '__main__':
             proposer_n_points=config.SAM_PROPOSER_N_POINTS,
         ),
         device=config.TORCH_DEVICE,
-        foodseg103_root=config.FOODSEG103_ROOT,
+        dataset=FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_test'),
         print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
     )
