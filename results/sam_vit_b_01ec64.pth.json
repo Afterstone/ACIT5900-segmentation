@@ -108,8 +108,12 @@
     }
   },
   {
-    "aAcc": [],
-    "mIoU": [],
+    "aAcc": [
+      0.8436540383063359
+    ],
+    "mIoU": [
+      0.2795562485178718
+    ],
     "params": {
       "CLIP_MODEL_PARAMS": {
         "model": "convnext_base_w",
@@ -122,8 +126,12 @@
     }
   },
   {
-    "aAcc": [],
-    "mIoU": [],
+    "aAcc": [
+      0.5965303144829348
+    ],
+    "mIoU": [
+      0.14163573445533018
+    ],
     "params": {
       "CLIP_MODEL_PARAMS": {
         "model": "convnext_base_w",
@@ -136,8 +144,12 @@
     }
   },
   {
-    "aAcc": [],
-    "mIoU": [],
+    "aAcc": [
+      0.3504266076182
+    ],
+    "mIoU": [
+      0.14806612300614722
+    ],
     "params": {
       "CLIP_MODEL_PARAMS": {
         "model": "RN50",
@@ -150,8 +162,12 @@
     }
   },
   {
-    "aAcc": [],
-    "mIoU": [],
+    "aAcc": [
+      0.46386858304461803
+    ],
+    "mIoU": [
+      0.17625263364292948
+    ],
     "params": {
       "CLIP_MODEL_PARAMS": {
         "model": "RN50",
