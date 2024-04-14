@@ -39,6 +39,10 @@ class TaguchiArrayBuilder:
         if self.params[ta_param.index] is not None:
             raise ValueError(f'Parameter at index {ta_param.index} already exists')
 
+        # Ensure that the number of values matches what we expect in the Taguchi array
+        if len(ta_param.values) != len(self.df_ta[self.df_ta.columns[ta_param.index]].unique()):
+            raise ValueError(f'Number of values does not match Taguchi array: {ta_param.values}')
+
         self.params[ta_param.index] = ta_param
 
     def ensure_initialized(self):
@@ -76,7 +80,7 @@ def main(
 
         if json_path.exists():
             with open(json_path, 'r') as f:
-                results = json.load(f)
+                trials = json.load(f)
         else:
             study = TaguchiArrayBuilder(ta_path)
             # Taguchi parameters
@@ -104,7 +108,7 @@ def main(
             with open(json_path, 'w') as f:
                 json.dump(trials, f, indent=2, sort_keys=True)
 
-        studies[SAM_MODEL] = results
+        studies[SAM_MODEL] = trials
 
     for SAM_MODEL, trials in studies.items():
         json_path = results_dir / Path(f'{SAM_MODEL}.json')
