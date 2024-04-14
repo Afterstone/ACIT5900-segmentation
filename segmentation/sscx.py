@@ -158,7 +158,7 @@ class ClipAttentionMapper:
 
         for text, text_feature in zip(top_texts, top_text_features):
             text_feature = text_feature.clone().unsqueeze(0)
-            attn_map = self.cam_method(self.model_visual, img_tensor, text_feature)
+            attn_map = self.cam_method(self.model_visual, img_tensor, text_feature).detach()
             attn_map = self.normalizer.normalize(attn_map)
             attn_map_np = attn_map.squeeze().detach().cpu().numpy()
 
