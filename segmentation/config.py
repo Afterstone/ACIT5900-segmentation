@@ -4,12 +4,16 @@ import torch as T
 
 # CLIP_NORMALIZE_ATTENTION: str = "minmax"
 CLIP_NORMALIZE_ATTENTION: str = "standard"
+# CLIP_NORMALIZE_ATTENTION: str = "softmax"
+# CLIP_NORMALIZE_ATTENTION: str = "percentile"
+CLIP_NORMALIZER_NORM: int = 3
 SAM_PROPOSER_N_POINTS: int = 3
-SAM_PROPOSER_NORM: int = 3
 
-XAI_METHOD: str = 'gradcam'
+# XAI_METHOD: str = 'gradcam'
 # XAI_METHOD: str = 'gradcampp'
 # XAI_METHOD: str = 'layercam'
+XAI_METHOD: str = 'uniform'
+
 
 # CLIP_MODEL_NAME: str = 'convnext_xxlarge'
 # CLIP_MODEL_WEIGHTS_NAME: str = 'laion2b_s34b_b82k_augreg'
