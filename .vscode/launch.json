@@ -25,5 +25,12 @@
             "module": "segmentation.run_taguchi_study",
             "justMyCode": true,
         },
+        {
+            "name": "Run Optuna study",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "segmentation.run_optuna_study",
+            "justMyCode": true,
+        },
     ]
 }

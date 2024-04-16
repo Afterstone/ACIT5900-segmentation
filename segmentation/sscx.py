@@ -296,6 +296,7 @@ def evaluate(
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
+    progress_callback: t.Callable[[int, dict[str, str | float | int]], None] | None = None,
 ) -> EvaluationResults:
     print("Loading dataset...")
     texts = [f"{prefix}{x}" for x in dataset.category_df['category'].tolist()]
@@ -397,6 +398,20 @@ def evaluate(
                 for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
                     pixel_acc_means.append(np.mean(acc_list))
                 progbar.set_postfix(mIOU=f"{np.mean(iou_means):.4f}", aAcc=f"{np.mean(pixel_acc_means):.4f}")
+
+        if progress_callback is not None:
+            iou_means = []
+            for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
+                iou_means.append(np.mean(iou_list))
+            pixel_acc_means = []
+            for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
+                pixel_acc_means.append(np.mean(acc_list))
+
+            results: dict[str, str | float | int] = {
+                "miou": float(np.mean(iou_means)),
+                "aacc": float(np.mean(pixel_acc_means)),
+            }
+            progress_callback(idx, results)
 
     iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
