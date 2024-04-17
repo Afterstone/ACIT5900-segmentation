@@ -82,7 +82,7 @@ def main(
 
     studies: dict[str, list[dict]] = defaultdict(list)
     for SAM_MODEL in SAM_MODELS:
-        json_path = results_dir / Path(f'{SAM_MODEL}.json')
+        json_path = results_dir / Path(f'{dataset_tag}_{SAM_MODEL}.json')
 
         if json_path.exists():
             with open(json_path, 'r') as f:
