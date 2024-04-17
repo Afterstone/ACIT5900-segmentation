@@ -153,7 +153,7 @@ def main(
                     ),
                     device=config.TORCH_DEVICE,
                     dataset=dataset,
-                    print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
+                    print_results_interval=100,
                 )
 
                 trial['mIoU'].append(res.mIoU)  # type: ignore
