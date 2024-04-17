@@ -112,8 +112,12 @@
     }
   },
   {
-    "aAcc": [],
-    "mIoU": [],
+    "aAcc": [
+      0.8601433633526046
+    ],
+    "mIoU": [
+      0.2761204697843936
+    ],
     "params": {
       "CLIP_MODEL_PARAMS": {
         "model": "convnext_base_w",
