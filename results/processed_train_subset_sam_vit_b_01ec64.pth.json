@@ -36,8 +36,12 @@
     }
   },
   {
-    "aAcc": [],
-    "mIoU": [],
+    "aAcc": [
+      0.5319091509415765
+    ],
+    "mIoU": [
+      0.20930983070634024
+    ],
     "params": {
       "CLIP_MODEL_PARAMS": {
         "model": "convnext_xxlarge",
