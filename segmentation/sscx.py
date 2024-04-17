@@ -297,6 +297,7 @@ def evaluate(
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
     progress_callback: t.Callable[[int, dict[str, str | float | int]], None] | None = None,
+    progress_callback_interval: int = 10,
 ) -> EvaluationResults:
     print("Loading dataset...")
     texts = [f"{prefix}{x}" for x in dataset.category_df['category'].tolist()]
@@ -392,7 +393,7 @@ def evaluate(
 
         if idx > 0 and (
             (idx % print_results_interval == 0)
-            or (progress_callback is not None)
+            or (progress_callback is not None and idx % progress_callback_interval == 0)
         ):
             iou_means = []
             for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
