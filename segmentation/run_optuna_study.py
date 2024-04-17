@@ -165,7 +165,9 @@ def train(
     )
 
     trial.set_user_attr('mIoU', res.mIoU)
+    trial.set_user_attr('mIoU_std', res.mIoU_std)
     trial.set_user_attr('aAcc', res.aAcc)
+    trial.set_user_attr('aAcc_std', res.aAcc_std)
 
     total_time_sec = (time.monotonic_ns() - start_time) / 1e9
     total_time_min = total_time_sec / 60
