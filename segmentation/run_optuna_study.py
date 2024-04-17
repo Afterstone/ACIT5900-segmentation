@@ -160,6 +160,7 @@ def train(
         dataset=dataset,
         print_results_interval=print_results_interval,
         progress_callback=ProgressCallback(trial),
+        progress_callback_interval=10,
     )
 
     trial.set_user_attr('mIoU', res.mIoU)
@@ -183,8 +184,24 @@ def main(
     study_dir.mkdir(parents=True, exist_ok=True)
 
     db_uri = f"sqlite:///{str(study_dir)}/{study_name}.db"
-    sampler = get_sampler(study_dir / Path("sampler.pkl"))
-    pruner = get_pruner(study_dir / Path("pruner.pkl"))
+    # sampler = get_sampler(study_dir / Path("sampler.pkl"))
+    # pruner = get_pruner(study_dir / Path("pruner.pkl"))
+
+    sampler = optuna.samplers.TPESampler(
+        seed=42,
+        n_startup_trials=5,
+        multivariate=True,
+        group=True
+    )
+    # pruner = optuna.pruners.PercentilePruner(
+    #     percentile=75,
+    #     n_warmup_steps=300,
+    #     n_startup_trials=5
+    # )
+    pruner = optuna.pruners.WilcoxonPruner(
+        p_threshold=0.10,
+        n_startup_steps=100,
+    )
 
     study = optuna.create_study(
         study_name=study_name,
@@ -194,12 +211,13 @@ def main(
         pruner=pruner,
         direction=optuna.study.StudyDirection.MAXIMIZE,
     )
+
     valid_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
     remaining_trials = total_trials - len(valid_trials)
 
     if remaining_trials > 0:
         print("--- Starting trials ---")
-        print(f"Remaining trials: {len(valid_trials)} / {total_trials}")
+        print(f"Current trial: {len(valid_trials)} / {total_trials}")
         dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_train_subset')
         study.optimize(
             partial(
