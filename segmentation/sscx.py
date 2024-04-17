@@ -390,16 +390,10 @@ def evaluate(
 
             pixel_accs[index].append((best_mask_tensor == annotation_bool).float().mean().item())
 
-            if idx > 0 and idx % print_results_interval == 0:
-                iou_means = []
-                for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
-                    iou_means.append(np.mean(iou_list))
-                pixel_acc_means = []
-                for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
-                    pixel_acc_means.append(np.mean(acc_list))
-                progbar.set_postfix(mIOU=f"{np.mean(iou_means):.4f}", aAcc=f"{np.mean(pixel_acc_means):.4f}")
-
-        if progress_callback is not None:
+        if idx > 0 and (
+            (idx % print_results_interval == 0)
+            or (progress_callback is not None)
+        ):
             iou_means = []
             for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
                 iou_means.append(np.mean(iou_list))
@@ -407,11 +401,18 @@ def evaluate(
             for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
                 pixel_acc_means.append(np.mean(acc_list))
 
-            results: dict[str, str | float | int] = {
-                "miou": float(np.mean(iou_means)),
-                "aacc": float(np.mean(pixel_acc_means)),
-            }
-            progress_callback(idx, results)
+            miou = float(np.mean(iou_means))
+            aacc = float(np.mean(pixel_acc_means))
+
+            if idx > 0 and idx % print_results_interval == 0:
+                progbar.set_postfix(mIOU=f"{miou:.4f}", aAcc=f"{aacc:.4f}")
+
+            if progress_callback is not None:
+                results: dict[str, str | float | int] = {
+                    "miou": miou,
+                    "aacc": aacc,
+                }
+                progress_callback(idx, results)
 
     iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
