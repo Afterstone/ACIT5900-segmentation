@@ -1,0 +1,14 @@
+{
+    "best_trial": 49,
+    "best_params": {
+        "CLIP_MODEL_NAME": "convnext_base_w",
+        "XAI_METHOD": "gradcampp",
+        "CLIP_NORMALIZE_ATTENTION": "percentile",
+        "SAM_PROPOSER_N_POINTS": 16,
+        "SAM_PROPOSER_NORM": 2.2518007325710983
+    },
+    "train_mIoU": 0.4296316945205298,
+    "train_aAcc": 0.8395593108229289,
+    "test_mIoU": 0.4291480493836636,
+    "test_aAcc": 0.8242900308917718
+}

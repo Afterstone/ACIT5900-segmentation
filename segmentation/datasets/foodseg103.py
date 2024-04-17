@@ -42,6 +42,7 @@ class FoodSegDataset(Dataset):
         root: Path,
         train: bool = True,
         load_first_n: int | None = None,
+        load_subset_by_index: set[int] | None = None,
         tensor_size: t.Tuple[int, int] = (256, 256),
     ) -> FoodSegDataset:
         dataset = cls(_load_check=False)
@@ -54,11 +55,15 @@ class FoodSegDataset(Dataset):
         dataset.image_paths = sorted(list(image_folder.glob('*.jpg')))
         if load_first_n is not None:
             dataset.image_paths = dataset.image_paths[:load_first_n]
+        elif load_subset_by_index is not None:
+            dataset.image_paths = [dataset.image_paths[i] for i in load_subset_by_index]
 
         annotations_folder = root / 'Images' / 'ann_dir' / dataset.split_name
         dataset.annotations_paths = sorted(list(annotations_folder.glob('*.png')))
         if load_first_n is not None:
             dataset.annotations_paths = dataset.annotations_paths[:load_first_n]
+        elif load_subset_by_index is not None:
+            dataset.annotations_paths = [dataset.annotations_paths[i] for i in load_subset_by_index]
 
         ip = [x.stem for x in dataset.image_paths]
         ap = [x.stem for x in dataset.annotations_paths]
@@ -140,8 +145,8 @@ class FoodSegDataset(Dataset):
             'X_path': f'X_{self.split_name}.pt',
             'y_path': f'y_{self.split_name}.pt',
         }
-        T.save(self.X, folder / metadata['X_path'])
-        T.save(self.y, folder / metadata['y_path'])
+        T.save(self.X, folder / metadata['X_path'])  # type: ignore
+        T.save(self.y, folder / metadata['y_path'])  # type: ignore
         with open(folder / 'metadata.pkl', 'wb') as f:
             pickle.dump(metadata, f)
 
@@ -172,6 +177,12 @@ def _download(
             fd.write(chunk)
             progress_bar.update(len(chunk))
         progress_bar.close()
+
+
+def get_deterministic_permutation(n: int, seed: int) -> set[int]:
+    generator = T.Generator().manual_seed(42)
+    permutation = set(T.randperm(n, generator=generator).tolist())
+    return permutation
 
 
 def main(
@@ -212,6 +223,17 @@ def main(
     ds_test.dump_pickle(dest_dir_foodseg / 'processed_test')
     del ds_test
     ds_test = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_test')
+    del ds_test
+
+    ds_train_subset = FoodSegDataset.load_data(
+        dest_dir_foodseg,
+        train=True,
+        load_subset_by_index=get_deterministic_permutation(2_000, 42),
+    )
+    ds_train_subset.dump_pickle(dest_dir_foodseg / 'processed_train_subset')
+    del ds_train_subset
+    ds_train_subset = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_train_subset')
+    del ds_train_subset
 
 
 if __name__ == '__main__':

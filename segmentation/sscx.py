@@ -285,7 +285,9 @@ class SamConfig:
 @dataclass
 class EvaluationResults:
     mIoU: float
+    mIoU_std: float
     aAcc: float
+    aAcc_std: float
 
 
 def evaluate(
@@ -296,6 +298,8 @@ def evaluate(
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
+    progress_callback: t.Callable[[int, dict[str, str | float | int]], None] | None = None,
+    progress_callback_interval: int = 10,
 ) -> EvaluationResults:
     print("Loading dataset...")
     texts = [f"{prefix}{x}" for x in dataset.category_df['category'].tolist()]
@@ -389,14 +393,33 @@ def evaluate(
 
             pixel_accs[index].append((best_mask_tensor == annotation_bool).float().mean().item())
 
+        if idx > 0 and (
+            (print_results_interval > 0 and idx % print_results_interval == 0)
+            or (progress_callback is not None and idx % progress_callback_interval == 0)
+        ):
+            iou_means = []
+            for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
+                iou_means.append(np.mean(iou_list))
+            pixel_acc_means = []
+            for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
+                pixel_acc_means.append(np.mean(acc_list))
+
+            miou_avg = float(np.mean(iou_means))
+            miou_std = float(np.std(iou_means))
+            aacc_avg = float(np.mean(pixel_acc_means))
+            aacc_std = float(np.std(pixel_acc_means))
+
             if idx > 0 and idx % print_results_interval == 0:
-                iou_means = []
-                for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
-                    iou_means.append(np.mean(iou_list))
-                pixel_acc_means = []
-                for i, acc_list in sorted(list(pixel_accs.items()), key=lambda x: x[0]):
-                    pixel_acc_means.append(np.mean(acc_list))
-                progbar.set_postfix(mIOU=f"{np.mean(iou_means):.4f}", aAcc=f"{np.mean(pixel_acc_means):.4f}")
+                progbar.set_postfix(mIOU=f"{miou_avg:.4f}", aAcc=f"{aacc_avg:.4f}")
+
+            if progress_callback is not None:
+                results: dict[str, str | float | int] = {
+                    "miou": miou_avg,
+                    "miou_std": miou_std,
+                    "aacc": aacc_avg,
+                    "aacc_std": aacc_std,
+                }
+                progress_callback(idx, results)
 
     iou_means = []
     for i, iou_list in sorted(list(ious.items()), key=lambda x: x[0]):
@@ -413,7 +436,9 @@ def evaluate(
 
     return EvaluationResults(
         mIoU=float(np.mean(iou_means)),
+        mIoU_std=float(np.std(iou_means)),
         aAcc=float(np.mean(pixel_acc_means)),
+        aAcc_std=float(np.std(pixel_acc_means)),
     )
 
     # n_cols, n_rows = 3, len(attn_maps.keys())
