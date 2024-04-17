@@ -207,7 +207,7 @@ def main(
     # https://github.com/optuna/optuna/wiki/Benchmarks-with-Kurobako
     pruner = optuna.pruners.HyperbandPruner(
         min_resource=1,
-        max_resource=dataset_size,
+        max_resource='auto',
         reduction_factor=3,
     )
 
