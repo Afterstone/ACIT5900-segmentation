@@ -65,9 +65,15 @@ def main(
     ta_path: Path,
     results_dir: Path,
     model_dir: Path,
+    dataset_tag: str,
+    n_iterations: int,
 ):
     # Strata parameters
-    SAM_MODELS = ['sam_vit_b_01ec64.pth', 'sam_vit_l_0b3195.pth', 'sam_vit_h_4b8939.pth']
+    SAM_MODELS = [
+        'sam_vit_b_01ec64.pth',
+        # 'sam_vit_l_0b3195.pth',
+        # 'sam_vit_h_4b8939.pth',
+    ]
     SAM_MODEL_TO_TYPE = {
         'sam_vit_b_01ec64.pth': 'vit_b',
         'sam_vit_l_0b3195.pth': 'vit_l',
@@ -110,53 +116,51 @@ def main(
 
         studies[SAM_MODEL] = trials
 
+    dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / dataset_tag)
     for SAM_MODEL, trials in studies.items():
-        json_path = results_dir / Path(f'{SAM_MODEL}.json')
-
+        json_path = results_dir / Path(f'{dataset_tag}_{SAM_MODEL}.json')
         print(f'Running {SAM_MODEL}')
         print(f'Number of trials: {len(trials)}')
+        for _ in range(n_iterations):
+            min_results = min(len(trial['mIoU']) for trial in trials)
+            if min_results >= n_iterations:
+                break
 
-        # Check the max number of results per trial.
-        max_results = max(len(trial['mIoU']) for trial in trials)
-        min_results = min(len(trial['mIoU']) for trial in trials)
-        if max_results == min_results:
-            max_results += 1
+            for trial in tqdm.tqdm(trials, total=len(trials), desc='Running trials', unit='trial'):
+                if len(trial['mIoU']) >= n_iterations:
+                    print(f"Skipping trial because it has already been run: {trial['params']}")
+                    continue
 
-        for trial in tqdm.tqdm(trials, total=len(trials), desc='Running trials', unit='trial'):
-            if len(trial['mIoU']) >= max_results:
-                print(f"Skipping trial because it has already been run: {trial['params']}")
-                continue
+                print(f'Running trial: {trial["params"]}')
+                trial_params = trial['params']
 
-            print(f'Running trial: {trial["params"]}')
-            trial_params = trial['params']
+                res = sscx.evaluate(
+                    clip_attn_mapper_config=sscx.ClipAttentionMapperConfig(
+                        model_name=trial_params['CLIP_MODEL_PARAMS']['model'],  # type: ignore
+                        model_weights_name=trial_params['CLIP_MODEL_PARAMS']['weights'],  # type: ignore
+                        xai_method=trial_params['XAI_METHOD'],  # type: ignore
+                        normalize_attention=trial_params['CLIP_NORMALIZE_ATTENTION'],  # type: ignore
+                        normalizer_norm=trial_params['SAM_PROPOSER_NORM'],  # type: ignore
+                    ),
+                    clip_cls_config=sscx.ClipClassifierConfig(
+                        model_name=config.CLIP_CLASSIFIER_NAME,
+                        model_weights_name=config.CLIP_CLASSIFIER_WEIGHTS_NAME,
+                    ),
+                    sam_config=sscx.SamConfig(
+                        checkpoint=str(model_dir / SAM_MODEL),
+                        model_type=SAM_MODEL_TO_TYPE[SAM_MODEL],
+                        proposer_n_points=trial_params['SAM_PROPOSER_N_POINTS'],  # type: ignore
+                    ),
+                    device=config.TORCH_DEVICE,
+                    dataset=dataset,
+                    print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
+                )
 
-            res = sscx.evaluate(
-                clip_attn_mapper_config=sscx.ClipAttentionMapperConfig(
-                    model_name=trial_params['CLIP_MODEL_PARAMS']['model'],  # type: ignore
-                    model_weights_name=trial_params['CLIP_MODEL_PARAMS']['weights'],  # type: ignore
-                    xai_method=trial_params['XAI_METHOD'],  # type: ignore
-                    normalize_attention=trial_params['CLIP_NORMALIZE_ATTENTION'],  # type: ignore
-                    normalizer_norm=trial_params['SAM_PROPOSER_NORM'],  # type: ignore
-                ),
-                clip_cls_config=sscx.ClipClassifierConfig(
-                    model_name=config.CLIP_CLASSIFIER_NAME,
-                    model_weights_name=config.CLIP_CLASSIFIER_WEIGHTS_NAME,
-                ),
-                sam_config=sscx.SamConfig(
-                    checkpoint=str(model_dir / SAM_MODEL),
-                    model_type=SAM_MODEL_TO_TYPE[SAM_MODEL],
-                    proposer_n_points=trial_params['SAM_PROPOSER_N_POINTS'],  # type: ignore
-                ),
-                device=config.TORCH_DEVICE,
-                dataset=FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_test'),
-                print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
-            )
+                trial['mIoU'].append(res.mIoU)  # type: ignore
+                trial['aAcc'].append(res.aAcc)  # type: ignore
 
-            trial['mIoU'].append(res.mIoU)  # type: ignore
-            trial['aAcc'].append(res.aAcc)  # type: ignore
-
-            with open(json_path, 'w') as f:
-                json.dump(trials, f, indent=2, sort_keys=True)
+                with open(json_path, 'w') as f:
+                    json.dump(trials, f, indent=2, sort_keys=True)
 
 
 if __name__ == '__main__':
@@ -164,4 +168,6 @@ if __name__ == '__main__':
         ta_path=Path('taguchi_designs/L16B.csv'),
         results_dir=Path('results'),
         model_dir=Path('models'),
+        dataset_tag='processed_train_subset',
+        n_iterations=3,
     )
