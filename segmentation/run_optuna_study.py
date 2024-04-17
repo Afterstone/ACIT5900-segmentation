@@ -115,6 +115,7 @@ def train(
     dataset: FoodSegDataset,
     device: str,
     print_results_interval: int,
+    progress_callback_interval: int,
 ) -> float:
     start_time = time.monotonic_ns()
 
@@ -160,7 +161,7 @@ def train(
         dataset=dataset,
         print_results_interval=print_results_interval,
         progress_callback=ProgressCallback(trial),
-        progress_callback_interval=10,
+        progress_callback_interval=progress_callback_interval,
     )
 
     trial.set_user_attr('mIoU', res.mIoU)
@@ -184,8 +185,6 @@ def main(
     study_dir.mkdir(parents=True, exist_ok=True)
 
     db_uri = f"sqlite:///{str(study_dir)}/{study_name}.db"
-    # sampler = get_sampler(study_dir / Path("sampler.pkl"))
-    # pruner = get_pruner(study_dir / Path("pruner.pkl"))
 
     sampler = optuna.samplers.TPESampler(
         seed=42,
@@ -193,14 +192,11 @@ def main(
         multivariate=True,
         group=True
     )
-    # pruner = optuna.pruners.PercentilePruner(
-    #     percentile=75,
-    #     n_warmup_steps=300,
-    #     n_startup_trials=5
-    # )
-    pruner = optuna.pruners.WilcoxonPruner(
-        p_threshold=0.10,
-        n_startup_steps=100,
+
+    pruner = optuna.pruners.PercentilePruner(
+        percentile=50,
+        n_warmup_steps=300,
+        n_startup_trials=5
     )
 
     study = optuna.create_study(
@@ -226,7 +222,8 @@ def main(
                 sam_model_type=sam_model_type,
                 dataset=dataset,
                 device=config.TORCH_DEVICE,  # type: ignore
-                print_results_interval=-1,
+                print_results_interval=100,
+                progress_callback_interval=100,
             ),  # type: ignore
             n_trials=remaining_trials,
             catch=(
