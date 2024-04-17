@@ -392,7 +392,7 @@ def evaluate(
             pixel_accs[index].append((best_mask_tensor == annotation_bool).float().mean().item())
 
         if idx > 0 and (
-            (idx % print_results_interval == 0)
+            (print_results_interval > 0 and idx % print_results_interval == 0)
             or (progress_callback is not None and idx % progress_callback_interval == 0)
         ):
             iou_means = []
