@@ -121,17 +121,15 @@ def main(
         json_path = results_dir / Path(f'{dataset_tag}_{SAM_MODEL}.json')
         print(f'Running {SAM_MODEL}')
         print(f'Number of trials: {len(trials)}')
-        for _ in range(n_iterations):
+        for i in range(n_iterations):
             min_results = min(len(trial['mIoU']) for trial in trials)
+            if min_results > i:
+                continue
             if min_results >= n_iterations:
                 break
 
-            max_results = max(len(trial['mIoU']) for trial in trials)
             for trial in tqdm.tqdm(trials, total=len(trials), desc='Running trials', unit='trial'):
-                if len(trial['mIoU']) >= n_iterations:
-                    continue
-
-                if min_results != max_results and len(trial['mIoU']) == max_results:
+                if len(trial['mIoU']) != min_results:
                     continue
 
                 print(f'Running trial: {trial["params"]}')
