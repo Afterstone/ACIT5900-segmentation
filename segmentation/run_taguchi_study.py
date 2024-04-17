@@ -169,5 +169,5 @@ if __name__ == '__main__':
         results_dir=Path('results'),
         model_dir=Path('models'),
         dataset_tag='processed_train_subset',
-        n_iterations=3,
+        n_iterations=5,
     )
