@@ -196,7 +196,7 @@ def main(
     pruner = optuna.pruners.PercentilePruner(
         percentile=50,
         n_warmup_steps=300,
-        n_startup_trials=5
+        n_startup_trials=3,
     )
 
     study = optuna.create_study(
