@@ -126,9 +126,12 @@ def main(
             if min_results >= n_iterations:
                 break
 
+            max_results = max(len(trial['mIoU']) for trial in trials)
             for trial in tqdm.tqdm(trials, total=len(trials), desc='Running trials', unit='trial'):
                 if len(trial['mIoU']) >= n_iterations:
-                    print(f"Skipping trial because it has already been run: {trial['params']}")
+                    continue
+
+                if min_results != max_results and len(trial['mIoU']) == max_results:
                     continue
 
                 print(f'Running trial: {trial["params"]}')
