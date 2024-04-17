@@ -182,6 +182,7 @@ def main(
     total_trials: int,
     sam_model_checkpoint: Path,
     sam_model_type: str,
+    dataset_size: int = 1_999,
 ):
     study_dir = base_dir / study_name
     study_dir.mkdir(parents=True, exist_ok=True)
@@ -195,10 +196,19 @@ def main(
         group=True
     )
 
-    pruner = optuna.pruners.PercentilePruner(
-        percentile=50,
-        n_warmup_steps=300,
-        n_startup_trials=3,
+    # pruner = optuna.pruners.PercentilePruner(
+    #     percentile=50,
+    #     n_warmup_steps=300,
+    #     n_startup_trials=3,
+    # )
+
+    # HyperBandPruner is suggested as the best option when using TPE.
+    # https://optuna.readthedocs.io/en/stable/tutorial/10_key_features/003_efficient_optimization_algorithms.html#which-sampler-and-pruner-should-be-used
+    # https://github.com/optuna/optuna/wiki/Benchmarks-with-Kurobako
+    pruner = optuna.pruners.HyperbandPruner(
+        min_resource=1,
+        max_resource=dataset_size,
+        reduction_factor=3,
     )
 
     study = optuna.create_study(
