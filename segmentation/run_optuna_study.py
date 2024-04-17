@@ -182,7 +182,6 @@ def main(
     total_trials: int,
     sam_model_checkpoint: Path,
     sam_model_type: str,
-    dataset_size: int = 1_999,
 ):
     study_dir = base_dir / study_name
     study_dir.mkdir(parents=True, exist_ok=True)
