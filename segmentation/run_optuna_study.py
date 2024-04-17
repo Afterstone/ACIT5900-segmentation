@@ -194,9 +194,12 @@ def main(
         pruner=pruner,
         direction=optuna.study.StudyDirection.MAXIMIZE,
     )
-    remaining_trials = total_trials - len(study.trials)
+    valid_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+    remaining_trials = total_trials - len(valid_trials)
 
     if remaining_trials > 0:
+        print("--- Starting trials ---")
+        print(f"Remaining trials: {len(valid_trials)} / {total_trials}")
         dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_train_subset')
         study.optimize(
             partial(
