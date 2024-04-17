@@ -1,6 +1,6 @@
+import json
 import pickle
 import time
-import typing as t
 from functools import partial
 from pathlib import Path
 
@@ -29,7 +29,12 @@ def get_sampler(
     if path.exists():
         sampler = load_pickle(path)
     else:
-        sampler = optuna.samplers.TPESampler(seed=42, multivariate=True, group=True)
+        sampler = optuna.samplers.TPESampler(
+            seed=42,
+            n_startup_trials=5,
+            multivariate=True,
+            group=True
+        )
         save_pickle(path, sampler)
 
     return sampler
@@ -42,7 +47,7 @@ def get_pruner(
     if path.exists():
         pruner = load_pickle(path)
     else:
-        pruner = optuna.pruners.MedianPruner(n_startup_trials=100)
+        pruner = optuna.pruners.MedianPruner(n_warmup_steps=30, n_startup_trials=5)
         save_pickle(path, pruner)
 
     return pruner
@@ -60,7 +65,50 @@ class ProgressCallback:
             raise optuna.TrialPruned()
 
 
-def objective(
+def evaluate(
+    clip_model_name: str,
+    clip_model_weights_name: str,
+    xai_method: str,
+    clip_normalize_attention: str,
+    sam_model_checkpoint: Path,
+    sam_model_type: str,
+    sam_proposer_n_points: int,
+    sam_proposer_norm: float,
+    dataset: FoodSegDataset,
+    device: str,
+    print_results_interval: int,
+
+):
+    clip_attn_mapper_config = sscx.ClipAttentionMapperConfig(
+        model_name=clip_model_name,
+        model_weights_name=clip_model_weights_name,
+        xai_method=xai_method,
+        normalize_attention=clip_normalize_attention,
+        normalizer_norm=sam_proposer_norm,
+    )
+    clip_cls_config = sscx.ClipClassifierConfig(
+        model_name=config.CLIP_CLASSIFIER_NAME,
+        model_weights_name=config.CLIP_CLASSIFIER_WEIGHTS_NAME,
+    )
+    sam_config = sscx.SamConfig(
+        checkpoint=str(sam_model_checkpoint),
+        model_type=sam_model_type,
+        proposer_n_points=sam_proposer_n_points,
+    )
+
+    res = sscx.evaluate(
+        clip_attn_mapper_config=clip_attn_mapper_config,
+        clip_cls_config=clip_cls_config,
+        sam_config=sam_config,
+        device=device,
+        dataset=dataset,
+        print_results_interval=print_results_interval,
+    )
+
+    return res
+
+
+def train(
     trial: optuna.Trial,
     sam_model_checkpoint: Path,
     sam_model_type: str,
@@ -73,6 +121,8 @@ def objective(
     clip_model_name_to_weights = {
         'convnext_xxlarge': 'laion2b_s34b_b82k_augreg',
         'convnext_base_w': 'laion2b_s13b_b82k_augreg',
+        'RN50': 'openai',
+        'RN101': 'openai',
     }
 
     clip_model_names: list[str] = sorted(list(clip_model_name_to_weights.keys()))
@@ -123,9 +173,11 @@ def objective(
 
 
 def main(
-    base_dir: Path = Path("studies"),
-    study_name: str = "sscx",
-    total_trials: int = 100,
+    base_dir: Path,
+    study_name: str,
+    total_trials: int,
+    sam_model_checkpoint: Path,
+    sam_model_type: str,
 ):
     study_dir = base_dir / study_name
     study_dir.mkdir(parents=True, exist_ok=True)
@@ -133,8 +185,6 @@ def main(
     db_uri = f"sqlite:///{str(study_dir)}/{study_name}.db"
     sampler = get_sampler(study_dir / Path("sampler.pkl"))
     pruner = get_pruner(study_dir / Path("pruner.pkl"))
-
-    dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_test')
 
     study = optuna.create_study(
         study_name=study_name,
@@ -147,19 +197,76 @@ def main(
     remaining_trials = total_trials - len(study.trials)
 
     if remaining_trials > 0:
+        dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_train_subset')
         study.optimize(
             partial(
-                objective,
-                sam_model_checkpoint=Path("models/sam_vit_b_01ec64.pth"),
-                sam_model_type="vit_b",
+                train,
+                sam_model_checkpoint=sam_model_checkpoint,
+                sam_model_type=sam_model_type,
                 dataset=dataset,
                 device=config.TORCH_DEVICE,  # type: ignore
                 print_results_interval=-1,
-
             ),  # type: ignore
-            n_trials=remaining_trials
+            n_trials=remaining_trials,
+            catch=(
+                Exception,
+            ),
         )
+        del dataset
+
+    print("--- Trials finished---")
+    results_dict = {
+        'best_trial': study.best_trial.number,
+        'best_params': study.best_params,
+        'train_mIoU': study.best_trial.user_attrs['mIoU'],
+        'train_aAcc': study.best_trial.user_attrs['aAcc'],
+    }
+    print(f"Best trial: {study.best_trial.number} / {total_trials}")
+    print(f"Best params:")
+    for k, v in sorted(study.best_params.items(), key=lambda x: x[0]):
+        v_formatted = f"{v:.4f}" if isinstance(v, float) else v
+        print(f"    {k}: {v_formatted}")
+    print(f"Train mIoU: {study.best_trial.user_attrs['mIoU']:.4f}")
+    print(f"Train aAcc: {study.best_trial.user_attrs['aAcc']:.4f}")
+
+    print()
+    print("Evaluating...")
+
+    clip_model_name_to_weights = {
+        'convnext_xxlarge': 'laion2b_s34b_b82k_augreg',
+        'convnext_base_w': 'laion2b_s13b_b82k_augreg',
+    }
+    test_dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_test')
+    res = evaluate(
+        clip_model_name=study.best_params['CLIP_MODEL_NAME'],
+        clip_model_weights_name=clip_model_name_to_weights[study.best_params['CLIP_MODEL_NAME']],
+        xai_method=study.best_params['XAI_METHOD'],
+        clip_normalize_attention=study.best_params['CLIP_NORMALIZE_ATTENTION'],
+        sam_model_checkpoint=sam_model_checkpoint,
+        sam_model_type=sam_model_type,
+        sam_proposer_n_points=study.best_params['SAM_PROPOSER_N_POINTS'],
+        sam_proposer_norm=study.best_params['SAM_PROPOSER_NORM'],
+        dataset=test_dataset,
+        device=config.TORCH_DEVICE,  # type: ignore
+        print_results_interval=10,
+    )
+
+    results_dict['test_mIoU'] = res.mIoU
+    results_dict['test_aAcc'] = res.aAcc
+
+    print("--- Test results ---")
+    print(f"Test mIoU: {res.mIoU:.4f}")
+    print(f"Test aAcc: {res.aAcc:.4f}")
+
+    with open(study_dir / Path("results.json"), "w") as f:
+        json.dump(results_dict, f, indent=4)
 
 
 if __name__ == '__main__':
-    main()
+    main(
+        base_dir=Path("studies"),
+        study_name="sscx",
+        total_trials=30,
+        sam_model_checkpoint=Path("models/sam_vit_b_01ec64.pth"),
+        sam_model_type="vit_b",
+    )
