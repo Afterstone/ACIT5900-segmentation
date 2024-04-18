@@ -33,6 +33,7 @@ nbqa = "^1.8.3"
 scikit-learn = "^1.4.2"
 optuna = "^3.6.1"
 optuna-dashboard = "^0.15.1"
+prettytable = "^3.10.0"
 
 
 [tool.poetry.group.dev.dependencies]
