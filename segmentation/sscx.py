@@ -19,6 +19,7 @@ import segmentation.config as config
 import segmentation.xai as xai
 from segmentation.datasets import FoodSegDataset
 from segmentation.models.clip import get_clip_model
+from segmentation.models.sam import get_sam_model
 from segmentation.normalizers import (Identity, MinMaxNormalizer, Normalizer,
                                       PercentileThresholder,
                                       PolynomialStretcher,
@@ -42,14 +43,14 @@ def print_pretrained_models():
 #     return model, preprocess, tokenizer  # type: ignore
 
 
-def get_sam_model(
-    sam_checkpoint: str = "models/sam_vit_h_4b8939.pth",
-    sam_model_type: str = "vit_h",
-    device: str | T.device = "cuda",
-) -> SamPredictor:
-    sam = sam_model_registry[sam_model_type](checkpoint=sam_checkpoint)
-    sam.eval().to(device=device)  # type: ignore
-    return SamPredictor(sam)
+# def get_sam_model(
+#     sam_checkpoint: str = "models/sam_vit_h_4b8939.pth",
+#     sam_model_type: str = "vit_h",
+#     device: str | T.device = "cuda",
+# ) -> SamPredictor:
+#     sam = sam_model_registry[sam_model_type](checkpoint=sam_checkpoint)
+#     sam.eval().to(device=device)  # type: ignore
+#     return SamPredictor(sam)
 
 
 def show_mask(mask, ax, random_color=False):
