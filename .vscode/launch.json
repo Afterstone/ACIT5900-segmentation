@@ -1,36 +1,40 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Download foodseg103",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "segmentation.datasets.foodseg103",
-            "justMyCode": true,
-        },
-        {
-            "name": "Segmentation using SAM, CLIP and XAI",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "segmentation.sscx",
-            "justMyCode": true,
-        },
-        {
-            "name": "Run Taguchi study",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "segmentation.run_taguchi_study",
-            "justMyCode": true,
-        },
-        {
-            "name": "Run Optuna study",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "segmentation.run_optuna_study",
-            "justMyCode": true,
-        },
-    ]
+  "configurations": [
+    {
+      "justMyCode": true,
+      "module": "segmentation.datasets.foodseg103",
+      "name": "Download foodseg103",
+      "request": "launch",
+      "type": "debugpy"
+    },
+    {
+      "justMyCode": true,
+      "module": "segmentation.sscx",
+      "name": "Segmentation using SAM, CLIP and XAI",
+      "request": "launch",
+      "type": "debugpy"
+    },
+    {
+      "justMyCode": true,
+      "module": "segmentation.run_taguchi_study",
+      "name": "Run Taguchi study",
+      "request": "launch",
+      "type": "debugpy"
+    },
+    {
+      "justMyCode": true,
+      "module": "segmentation.run_optuna_study",
+      "name": "Run Optuna study",
+      "request": "launch",
+      "type": "debugpy"
+    },
+    {
+      "justMyCode": true,
+      "module": "segmentation.classifiers.nn",
+      "name": "Train NN classifier",
+      "request": "launch",
+      "type": "debugpy"
+    }
+  ],
+  "version": "0.2.0"
 }
