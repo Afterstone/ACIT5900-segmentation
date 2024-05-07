@@ -9,6 +9,13 @@
     },
     {
       "justMyCode": true,
+      "module": "segmentation.datasets.uecfoodpixcomplete",
+      "name": "Download uexfoodpixcomplete",
+      "request": "launch",
+      "type": "debugpy"
+    },
+    {
+      "justMyCode": true,
       "module": "segmentation.sscx",
       "name": "Segmentation using SAM, CLIP and XAI",
       "request": "launch",

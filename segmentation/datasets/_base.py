@@ -103,3 +103,11 @@ class AbstractSegmentationDataset(Dataset):
 
     def __getitem__(self, idx: int) -> t.Tuple[T.Tensor, T.Tensor]:
         raise NotImplementedError
+
+    @abstractmethod
+    def get_cat_ids_from_annotation_masks(self, annotation_masks: T.Tensor) -> list[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_sparse_annotation_masks(self, annotation_masks: T.Tensor) -> dict[int, T.Tensor]:
+        raise NotImplementedError

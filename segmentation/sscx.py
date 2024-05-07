@@ -17,8 +17,8 @@ from tqdm import trange
 
 import segmentation.config as config
 import segmentation.xai as xai
-from segmentation.datasets import FoodSegDataset
-from segmentation.datasets._base import AbstractSegmentationDataset
+from segmentation.datasets import (AbstractSegmentationDataset, FoodSegDataset,
+                                   UECFoodPixComplete)
 from segmentation.models import get_clip_model, get_sam_model
 from segmentation.normalizers import (Identity, MinMaxNormalizer, Normalizer,
                                       PercentileThresholder,
@@ -286,7 +286,9 @@ def evaluate(
     progress_callback_interval: int = 10,
 ) -> EvaluationResults:
     print("Loading dataset...")
-    texts = [f"{prefix}{x}" for x in dataset.categories.values()]
+    cat_ids = list(x for x in dataset.categories.keys())
+    cat_texts = [dataset.categories[i] for i in cat_ids]
+    prefixed_texts = [f"{prefix}{x}" for x in cat_texts]
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
         print(f"Loading CLIP model \"{clip_attn_mapper_config.model_name}\" with"
@@ -296,7 +298,7 @@ def evaluate(
             model_name=clip_attn_mapper_config.model_name,
             model_weights_name=clip_attn_mapper_config.model_weights_name,
             cam_method=clip_attn_mapper_config.get_xai_method(),
-            classes=texts,
+            classes=prefixed_texts,
             device=device,
             normalizer=clip_attn_mapper_config.get_normalization_method(),
         )
@@ -321,8 +323,10 @@ def evaluate(
         # Load the annotations.
         with Image.open(dataset.annotations_paths[idx]) as img:
             ann_tensor = T.tensor(np.array(img))
-            ann_indices = [int(i) for i in extract_class_indices_from_annotations(ann_tensor.unsqueeze(0))]
-            ann_mask_lookup = get_sparse_annotation_masks(ann_tensor.unsqueeze(0))
+            # ann_cat_ids = [int(i) for i in extract_class_indices_from_annotations(ann_tensor.unsqueeze(0))]
+            # ann_mask_lookup = get_sparse_annotation_masks(ann_tensor.unsqueeze(0))
+            ann_cat_ids = dataset.get_cat_ids_from_annotation_masks(ann_tensor.unsqueeze(0))
+            ann_mask_lookup = dataset.get_sparse_annotation_masks(ann_tensor.unsqueeze(0))
 
         image_path = dataset.image_paths[idx]
         with Image.open(image_path) as img:
@@ -333,10 +337,11 @@ def evaluate(
                 # cls_res = clip_classifier.classify(img, top_k=10)
                 # indices = cls_res.indices
 
-                indices_list = ann_indices
-                top_text_features_list = [attn_mapper.text_features[int(i)] for i in indices_list]
+                indices_list = [i for i in ann_cat_ids if i in cat_ids]
+                indices_to_cat_list = [cat_ids.index(i) for i in indices_list]
+                top_text_features_list = [attn_mapper.text_features[i] for i in indices_to_cat_list]
                 top_text_features = T.stack(top_text_features_list)
-                top_texts = [texts[i] for i in indices_list]
+                top_texts = [prefixed_texts[i] for i in indices_to_cat_list]
 
             with T.cuda.amp.autocast():  # type: ignore
                 try:
@@ -363,13 +368,13 @@ def evaluate(
             best_mask = masks[np.argmax(scores), :, :]
             best_mask_tensor = T.tensor(best_mask).ravel()
 
-            annotation = ann_mask_lookup[indices_list[i]].squeeze()
+            index = indices_list[i]
+
+            annotation = ann_mask_lookup[index].squeeze()
             annotation = T.from_numpy(np.array(Image.fromarray(annotation.numpy()).resize(
                 (image_np.shape[1], image_np.shape[0]))))
             annotation_bool = annotation > 0
             annotation_bool = annotation_bool.ravel()
-
-            index = indices_list[i]
 
             intersection = T.logical_and(best_mask_tensor, annotation_bool)
             union = T.logical_or(best_mask_tensor, annotation_bool)
@@ -482,6 +487,7 @@ if __name__ == '__main__':
             proposer_n_points=config.SAM_PROPOSER_N_POINTS,
         ),
         device=config.TORCH_DEVICE,
-        dataset=FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_test'),
+        # dataset=FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / 'processed_test'),
+        dataset=UECFoodPixComplete.load_pickle(config.UECFOODPIXCOMPLETE_ROOT / 'processed_test'),
         print_results_interval=config.PRINT_RESULTS_EVERY_N_STEPS,
     )

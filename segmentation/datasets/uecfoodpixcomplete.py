@@ -18,12 +18,12 @@ from ._base import (AbstractSegmentationDataset, download_file,
                     get_deterministic_permutation)
 
 
-class FoodSegDataset(AbstractSegmentationDataset):
+class UECFoodPixComplete(AbstractSegmentationDataset):
     def __init__(self, _load_check: bool = True):
         super().__init__(_load_check=_load_check)
 
         if _load_check:
-            raise Exception("Please load data using the SegFoodDataset.load_* methods")
+            raise Exception("Please load data using the UECFoodPixComplete.load_* methods")
 
     @classmethod
     def load_data(
@@ -36,22 +36,22 @@ class FoodSegDataset(AbstractSegmentationDataset):
     ) -> AbstractSegmentationDataset:
         dataset = cls(_load_check=False)
 
-        if split_name is None:
-            raise ValueError('split_name must be provided for the FoodSeg103 dataset')
+        if not split_name in ['train', 'test']:
+            raise ValueError('split_name must be either "train" or "test"')
         dataset.split_name = split_name
 
-        category_file = root / 'category_id.txt'
-        df_category = pd.read_csv(category_file, sep='\t', header=None, names=['id', 'category'])
-        dataset.categories = {row['id']: row['category'] for _, row in df_category.iterrows()}
+        category_file = root / 'category.txt'
+        df_category = pd.read_csv(category_file, sep='\t', header=0, names=['id', 'name'])
+        dataset.categories = {int(row['id']): row['name'] for _, row in df_category.iterrows()}
 
-        image_folder = root / 'Images' / 'img_dir' / dataset.split_name
+        image_folder = root / split_name / 'img'
         dataset.image_paths = sorted(list(image_folder.glob('*.jpg')))
         if load_first_n is not None:
             dataset.image_paths = dataset.image_paths[:load_first_n]
         elif load_subset_by_index is not None:
             dataset.image_paths = [dataset.image_paths[i] for i in load_subset_by_index]
 
-        annotations_folder = root / 'Images' / 'ann_dir' / dataset.split_name
+        annotations_folder = root / split_name / 'mask'
         dataset.annotations_paths = sorted(list(annotations_folder.glob('*.png')))
         if load_first_n is not None:
             dataset.annotations_paths = dataset.annotations_paths[:load_first_n]
@@ -149,64 +149,63 @@ class FoodSegDataset(AbstractSegmentationDataset):
         return [int(i) for i in cat_ids]
 
     def get_sparse_annotation_masks(self, annotation_masks: T.Tensor) -> dict[int, T.Tensor]:
+        annotation_masks = annotation_masks[:, :, :, :3]
         masks: dict[int, T.Tensor] = {}
         indices = [int(i) for i in self.get_cat_ids_from_annotation_masks(annotation_masks)]
         for i in indices:
-            masks[i] = (annotation_masks == i).float()
+            masks[i] = T.sum((annotation_masks == i).float(), dim=3)
         return masks
 
 
 def main(
     dest_dir: Path = Path('./data/'),
     temp_dir: Path = Path('./temp/'),
-    password: str = 'LARCdataset9947',
 ):
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True)
 
-    zip_filename = 'FoodSeg103.zip'
-    zip_location = temp_dir / zip_filename
-    if not zip_location.exists():
+    tar_filename = "UECFOODPIXCOMPLETE.tar"
+    tar_path = temp_dir / tar_filename
+    if not tar_path.exists():
         download_file(
-            url='https://research.larc.smu.edu.sg/downloads/datarepo/FoodSeg103.zip',
+            url='https://mm.cs.uec.ac.jp/uecfoodpix/UECFOODPIXCOMPLETE.tar',
             destination=temp_dir,
-            filename=zip_filename,
+            filename=tar_filename,
         )
 
-    dest_dir_foodseg = dest_dir / 'FoodSeg103'
-    if not dest_dir_foodseg.exists():
+    dest_dir_uecfpc = dest_dir / 'UECFoodPixComplete'
+    if not dest_dir_uecfpc.exists():
         with tempfile.TemporaryDirectory() as tmp_dir:
             res = subprocess.run(
-                ['unzip', '-P', password, str(zip_location), '-d', str(tmp_dir)],
+                ['tar', '-xf', tar_path, '-C', tmp_dir],
                 check=True,
             )
             if res.returncode != 0:
-                raise ValueError(f'Error unzipping {zip_location}')
+                raise ValueError(f'Error unzipping {tar_path}')
 
-            shutil.move(Path(tmp_dir) / 'FoodSeg103', dest_dir)
+            shutil.move(Path(tmp_dir) / 'UECFOODPIXCOMPLETE', dest_dir_uecfpc)
+
+            for f in dest_dir_uecfpc.glob('data/*'):
+                shutil.move(f, dest_dir_uecfpc)
+            shutil.rmtree(dest_dir_uecfpc / 'data')
+
+            shutil.move(dest_dir_uecfpc / 'UECFoodPIXCOMPLETE' / 'train', dest_dir_uecfpc)
+            shutil.move(dest_dir_uecfpc / 'UECFoodPIXCOMPLETE' / 'test', dest_dir_uecfpc)
+            shutil.rmtree(dest_dir_uecfpc / 'UECFoodPIXCOMPLETE')
+
         print()
 
-    ds_train = FoodSegDataset.load_data(dest_dir_foodseg, split_name='train')
-    ds_train.dump_pickle(dest_dir_foodseg / 'processed_train')
-    del ds_train
-    ds_train = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_train')
-    del ds_train
-
-    ds_test = FoodSegDataset.load_data(dest_dir_foodseg, split_name='test')
-    ds_test.dump_pickle(dest_dir_foodseg / 'processed_test')
+    ds_test = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='test')
+    ds_test.dump_pickle(dest_dir_uecfpc / 'processed_test')
     del ds_test
-    ds_test = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_test')
+    ds_test = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_test')
     del ds_test
 
-    ds_train_subset = FoodSegDataset.load_data(
-        dest_dir_foodseg,
-        split_name='train',
-        load_subset_by_index=get_deterministic_permutation(2_000, 42),
-    )
-    ds_train_subset.dump_pickle(dest_dir_foodseg / 'processed_train_subset')
-    del ds_train_subset
-    ds_train_subset = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_train_subset')
-    del ds_train_subset
+    # ds_train = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='train')
+    # ds_train.dump_pickle(dest_dir_uecfpc / 'processed_train')
+    # del ds_train
+    # ds_train = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_train')
+    # del ds_train
 
 
 if __name__ == '__main__':
