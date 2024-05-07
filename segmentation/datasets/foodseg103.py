@@ -150,9 +150,12 @@ def main(
     temp_dir: Path = Path('./temp/'),
     password: str = 'LARCdataset9947',
 ):
-    zip_filename = "FoodSeg103.zip"
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True)
+
+    zip_filename = 'FoodSeg103.zip'
+    zip_location = temp_dir / zip_filename
+    if not zip_location.exists():
         download_file(
             url='https://research.larc.smu.edu.sg/downloads/datarepo/FoodSeg103.zip',
             destination=temp_dir,
@@ -161,7 +164,6 @@ def main(
 
     dest_dir_foodseg = dest_dir / 'FoodSeg103'
     if not dest_dir_foodseg.exists():
-        zip_location = temp_dir / zip_filename
         with tempfile.TemporaryDirectory() as tmp_dir:
             res = subprocess.run(
                 ['unzip', '-P', password, str(zip_location), '-d', str(tmp_dir)],
