@@ -1,6 +1,10 @@
+import os
 from pathlib import Path
 
 import torch as T
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # CLIP_NORMALIZE_ATTENTION: str = "minmax"
 CLIP_NORMALIZE_ATTENTION: str = "standard"
@@ -56,3 +60,5 @@ FOODSEG103_ROOT: Path = Path('./data/FoodSeg103')
 UECFOODPIXCOMPLETE_ROOT: Path = Path('./data/UECFoodPixComplete')
 
 PRINT_RESULTS_EVERY_N_STEPS: int = 10
+
+FOOD50SEG_PASSWORD: str | None = os.getenv("FOOD50SEG_PASSWORD")

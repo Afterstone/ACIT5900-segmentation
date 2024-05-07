@@ -16,6 +16,13 @@
     },
     {
       "justMyCode": true,
+      "module": "segmentation.datasets.food50seg",
+      "name": "Download food50seg",
+      "request": "launch",
+      "type": "debugpy"
+    },
+    {
+      "justMyCode": true,
       "module": "segmentation.sscx",
       "name": "Segmentation using SAM, CLIP and XAI",
       "request": "launch",
