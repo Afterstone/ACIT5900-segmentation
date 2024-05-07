@@ -18,6 +18,7 @@ from tqdm import trange
 import segmentation.config as config
 import segmentation.xai as xai
 from segmentation.datasets import FoodSegDataset
+from segmentation.datasets._base import AbstractSegmentationDataset
 from segmentation.models import get_clip_model, get_sam_model
 from segmentation.normalizers import (Identity, MinMaxNormalizer, Normalizer,
                                       PercentileThresholder,
@@ -277,7 +278,7 @@ def evaluate(
     clip_attn_mapper_config: ClipAttentionMapperConfig,
     clip_cls_config: ClipClassifierConfig,
     sam_config: SamConfig,
-    dataset: FoodSegDataset,
+    dataset: AbstractSegmentationDataset,
     prefix: str = "The dish contains the following: ",
     device: str | T.device = 'cuda',
     print_results_interval: int = 10,
@@ -285,7 +286,7 @@ def evaluate(
     progress_callback_interval: int = 10,
 ) -> EvaluationResults:
     print("Loading dataset...")
-    texts = [f"{prefix}{x}" for x in dataset.category_df['category'].tolist()]
+    texts = [f"{prefix}{x}" for x in dataset.categories.values()]
 
     with T.no_grad(), T.cuda.amp.autocast():  # type: ignore
         print(f"Loading CLIP model \"{clip_attn_mapper_config.model_name}\" with"

@@ -8,6 +8,7 @@ import optuna
 
 import segmentation.config as config
 import segmentation.sscx as sscx
+from segmentation.datasets._base import AbstractSegmentationDataset
 from segmentation.datasets.foodseg103 import FoodSegDataset
 
 
@@ -74,7 +75,7 @@ def evaluate(
     sam_model_type: str,
     sam_proposer_n_points: int,
     sam_proposer_norm: float,
-    dataset: FoodSegDataset,
+    dataset: AbstractSegmentationDataset,
     device: str,
     print_results_interval: int,
 
@@ -112,7 +113,7 @@ def train(
     trial: optuna.Trial,
     sam_model_checkpoint: Path,
     sam_model_type: str,
-    dataset: FoodSegDataset,
+    dataset: AbstractSegmentationDataset,
     device: str,
     print_results_interval: int,
     progress_callback_interval: int,
