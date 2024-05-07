@@ -4,7 +4,9 @@ import typing as t
 from abc import abstractmethod
 from pathlib import Path
 
+import requests
 import torch as T
+import tqdm
 from torch.utils.data import Dataset
 
 
@@ -12,6 +14,28 @@ def get_deterministic_permutation(n: int, seed: int = 42) -> set[int]:
     generator = T.Generator().manual_seed(seed)
     permutation = set(T.randperm(n, generator=generator).tolist())
     return permutation
+
+
+def download_file(
+    url: str,
+    destination: Path,
+    chunk_size: int = 1024,
+    filename: str | None = None,
+) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    if filename is None:
+        save_path = destination / url.split('/')[-1]
+    else:
+        save_path = destination / filename
+
+    with open(save_path, 'wb') as fd:
+        r = requests.get(url, stream=True)
+        total_size = int(r.headers.get('content-length', 0))
+        progress_bar = tqdm.tqdm(total=total_size, unit='B', unit_scale=True)
+        for chunk in r.iter_content(chunk_size=chunk_size):
+            fd.write(chunk)
+            progress_bar.update(len(chunk))
+        progress_bar.close()
 
 
 class AbstractSegmentationDataset(Dataset):

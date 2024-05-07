@@ -10,12 +10,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd  # type: ignore
 import PIL.Image as PIL_Image  # type: ignore
-import requests  # type: ignore
 import torch as T
 import torchvision.transforms as TV_trfs  # type: ignore
 from tqdm import tqdm  # type: ignore
 
-from ._base import AbstractSegmentationDataset, get_deterministic_permutation
+from ._base import (AbstractSegmentationDataset, download_file,
+                    get_deterministic_permutation)
 
 
 class FoodSegDataset(AbstractSegmentationDataset):
@@ -145,28 +145,6 @@ class FoodSegDataset(AbstractSegmentationDataset):
         return self.X[idx], self.y[idx]
 
 
-def _download(
-    url: str,
-    destination: Path,
-    chunk_size: int = 1024,
-    filename: str | None = None,
-) -> None:
-    destination.mkdir(parents=True, exist_ok=True)
-    if filename is None:
-        save_path = destination / url.split('/')[-1]
-    else:
-        save_path = destination / filename
-
-    with open(save_path, 'wb') as fd:
-        r = requests.get(url, stream=True)
-        total_size = int(r.headers.get('content-length', 0))
-        progress_bar = tqdm(total=total_size, unit='B', unit_scale=True)
-        for chunk in r.iter_content(chunk_size=chunk_size):
-            fd.write(chunk)
-            progress_bar.update(len(chunk))
-        progress_bar.close()
-
-
 def main(
     dest_dir: Path = Path('./data/'),
     temp_dir: Path = Path('./temp/'),
@@ -175,7 +153,7 @@ def main(
     zip_filename = "FoodSeg103.zip"
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True)
-        _download(
+        download_file(
             url='https://research.larc.smu.edu.sg/downloads/datarepo/FoodSeg103.zip',
             destination=temp_dir,
             filename=zip_filename,
