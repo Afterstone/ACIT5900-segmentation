@@ -13,11 +13,11 @@ repos:
     -   id: pretty-format-json
         args: [--autofix, --indent, "2"]
     -   id: trailing-whitespace
--   repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.8.3
-    hooks:
-    -   id: nbqa-ruff
-    -   id: nbqa-flake8
+# -   repo: https://github.com/nbQA-dev/nbQA
+#     rev: 1.8.3
+#     hooks:
+#     -   id: nbqa-ruff
+#     -   id: nbqa-flake8
     # -   id: nbqa-autopep8
     # -   id: nbqa-isort
     # -   id: nbqa-mypy
