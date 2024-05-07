@@ -6,6 +6,7 @@ import torch as T
 CLIP_NORMALIZE_ATTENTION: str = "standard"
 # CLIP_NORMALIZE_ATTENTION: str = "softmax"
 # CLIP_NORMALIZE_ATTENTION: str = "percentile"
+# CLIP_NORMALIZE_ATTENTION: str = "none"
 CLIP_NORMALIZER_NORM: int = 3
 SAM_PROPOSER_N_POINTS: int = 3
 
@@ -20,6 +21,9 @@ XAI_METHOD: str = 'uniform'
 
 CLIP_MODEL_NAME: str = 'convnext_base'
 CLIP_MODEL_WEIGHTS_NAME: str = 'laion400m_s13b_b51k'
+
+# CLIP_MODEL_NAME: str = 'convnext_base_w'
+# CLIP_MODEL_WEIGHTS_NAME: str = 'laion2b_s13b_b82k_augreg'
 
 # CLIP_MODEL_NAME: str = 'RN50x64'
 # CLIP_MODEL_WEIGHTS_NAME: str = 'openai'
