@@ -201,11 +201,15 @@ def main(
     ds_test = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_test')
     del ds_test
 
-    # ds_train = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='train')
-    # ds_train.dump_pickle(dest_dir_uecfpc / 'processed_train')
-    # del ds_train
-    # ds_train = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_train')
-    # del ds_train
+    ds_train_subset = UECFoodPixComplete.load_data(
+        dest_dir_uecfpc,
+        split_name='train',
+        load_subset_by_index=set(list(get_deterministic_permutation(9_000, 42))[:2000]),
+    )
+    ds_train_subset.dump_pickle(dest_dir_uecfpc / 'processed_train_subset')
+    del ds_train_subset
+    ds_train_subset = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_train_subset')
+    del ds_train_subset
 
 
 if __name__ == '__main__':
