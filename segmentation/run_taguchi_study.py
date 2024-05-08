@@ -180,7 +180,7 @@ if __name__ == '__main__':
         ta_path=Path('taguchi_designs/L16B.csv'),
         results_dir=Path('studies/taguchi/UECFoodPixComplete/'),
         model_dir=Path('models'),
-        dataset_tag='UECFoodPixComplete.processed_train_subset',
-        dataset=UECFoodPixComplete.load_pickle(Path('data/UECFoodPixComplete/processed_train_subset')),
+        dataset_tag='UECFoodPixComplete.processed_train_subset_1000',
+        dataset=UECFoodPixComplete.load_pickle(Path('data/UECFoodPixComplete/processed_train_subset_1000')),
         n_iterations=5,
     )

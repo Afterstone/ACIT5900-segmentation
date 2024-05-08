@@ -1,0 +1,302 @@
+[
+  {
+    "aAcc": [
+      0.8279271534229041,
+      0.8392585081440275
+    ],
+    "mIoU": [
+      0.5987193117093937,
+      0.624209372444637
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [
+      0.8152535378722068,
+      0.8015791654419716
+    ],
+    "mIoU": [
+      0.4732646033373782,
+      0.44020110345045294
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [
+      0.4424043566126256,
+      0.42389317546873617
+    ],
+    "mIoU": [
+      0.29129273951832146,
+      0.2860922673211798
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [
+      0.8433732365823954,
+      0.8415953094195581
+    ],
+    "mIoU": [
+      0.5945169817911101,
+      0.5622166874858097
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_xxlarge",
+        "weights": "laion2b_s34b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "layercam"
+    }
+  },
+  {
+    "aAcc": [
+      0.7244516020581798,
+      0.7028438274893254
+    ],
+    "mIoU": [
+      0.4888535292491998,
+      0.47589527858324326
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [
+      0.7290424687827772,
+      0.7522304465331935
+    ],
+    "mIoU": [
+      0.3591050331649786,
+      0.4033749542479481
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [
+      0.4893894086905027
+    ],
+    "mIoU": [
+      0.3001228439967158
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [
+      0.6645671508611752
+    ],
+    "mIoU": [
+      0.19732206477232822
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN101",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "layercam"
+    }
+  },
+  {
+    "aAcc": [
+      0.6046584271870623
+    ],
+    "mIoU": [
+      0.291442181382684
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [
+      0.8155443164532795
+    ],
+    "mIoU": [
+      0.5596443979914831
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [
+      0.6379814992593288
+    ],
+    "mIoU": [
+      0.17083001427127992
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [
+      0.8197829530224555
+    ],
+    "mIoU": [
+      0.5656754595565582
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "convnext_base_w",
+        "weights": "laion2b_s13b_b82k_augreg"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "layercam"
+    }
+  },
+  {
+    "aAcc": [
+      0.6724125894244813
+    ],
+    "mIoU": [
+      0.2048806770660416
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "percentile",
+      "SAM_PROPOSER_NORM": 3,
+      "SAM_PROPOSER_N_POINTS": 1,
+      "XAI_METHOD": "gradcampp"
+    }
+  },
+  {
+    "aAcc": [
+      0.5092122708240164
+    ],
+    "mIoU": [
+      0.31203321935833506
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "softmax",
+      "SAM_PROPOSER_NORM": 1,
+      "SAM_PROPOSER_N_POINTS": 9,
+      "XAI_METHOD": "gradcam"
+    }
+  },
+  {
+    "aAcc": [
+      0.5638933713795401
+    ],
+    "mIoU": [
+      0.26548164773636995
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "standard",
+      "SAM_PROPOSER_NORM": 2,
+      "SAM_PROPOSER_N_POINTS": 3,
+      "XAI_METHOD": "uniform"
+    }
+  },
+  {
+    "aAcc": [
+      0.5710418925907865
+    ],
+    "mIoU": [
+      0.38329837492823904
+    ],
+    "params": {
+      "CLIP_MODEL_PARAMS": {
+        "model": "RN50",
+        "weights": "openai"
+      },
+      "CLIP_NORMALIZE_ATTENTION": "none",
+      "SAM_PROPOSER_NORM": 4,
+      "SAM_PROPOSER_N_POINTS": 16,
+      "XAI_METHOD": "layercam"
+    }
+  }
+]

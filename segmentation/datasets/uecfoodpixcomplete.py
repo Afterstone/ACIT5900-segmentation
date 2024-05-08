@@ -195,20 +195,21 @@ def main(
 
         print()
 
-    ds_test = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='test')
-    ds_test.dump_pickle(dest_dir_uecfpc / 'processed_test')
-    del ds_test
-    ds_test = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_test')
-    del ds_test
+    # ds_test = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='test')
+    # ds_test.dump_pickle(dest_dir_uecfpc / 'processed_test')
+    # del ds_test
+    # ds_test = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_test')
+    # del ds_test
 
+    subset_size = 1_000
     ds_train_subset = UECFoodPixComplete.load_data(
         dest_dir_uecfpc,
         split_name='train',
-        load_subset_by_index=set(list(get_deterministic_permutation(9_000, 42))[:2000]),
+        load_subset_by_index=set(list(get_deterministic_permutation(9_000, 42))[:subset_size]),
     )
-    ds_train_subset.dump_pickle(dest_dir_uecfpc / 'processed_train_subset')
+    ds_train_subset.dump_pickle(dest_dir_uecfpc / f'processed_train_subset_{subset_size}')
     del ds_train_subset
-    ds_train_subset = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_train_subset')
+    ds_train_subset = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / f'processed_train_subset_{subset_size}')
     del ds_train_subset
 
 
