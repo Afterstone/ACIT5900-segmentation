@@ -1,0 +1,19 @@
++--------------------------+--------------------+
+| Variable name            | SNR impact on mIoU |
++--------------------------+--------------------+
+| SAM_PROPOSER_N_POINTS    | 18.78              |
+| SAM_PROPOSER_NORM        | 13.27              |
+| XAI_METHOD               | 13.10              |
+| CLIP_MODEL_NAME          | 11.48              |
+| CLIP_NORMALIZE_ATTENTION | 10.56              |
++--------------------------+--------------------+
+
++--------------------------+--------------------+
+| Variable name            | SNR impact on aAcc |
++--------------------------+--------------------+
+| SAM_PROPOSER_N_POINTS    | 8.45               |
+| XAI_METHOD               | 7.27               |
+| CLIP_NORMALIZE_ATTENTION | 6.22               |
+| CLIP_MODEL_NAME          | 5.25               |
+| SAM_PROPOSER_NORM        | 4.45               |
++--------------------------+--------------------+
