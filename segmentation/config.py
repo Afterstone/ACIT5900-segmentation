@@ -1,11 +1,16 @@
+import os
 from pathlib import Path
 
 import torch as T
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # CLIP_NORMALIZE_ATTENTION: str = "minmax"
 CLIP_NORMALIZE_ATTENTION: str = "standard"
 # CLIP_NORMALIZE_ATTENTION: str = "softmax"
 # CLIP_NORMALIZE_ATTENTION: str = "percentile"
+# CLIP_NORMALIZE_ATTENTION: str = "none"
 CLIP_NORMALIZER_NORM: int = 3
 SAM_PROPOSER_N_POINTS: int = 3
 
@@ -20,6 +25,9 @@ XAI_METHOD: str = 'uniform'
 
 CLIP_MODEL_NAME: str = 'convnext_base'
 CLIP_MODEL_WEIGHTS_NAME: str = 'laion400m_s13b_b51k'
+
+# CLIP_MODEL_NAME: str = 'convnext_base_w'
+# CLIP_MODEL_WEIGHTS_NAME: str = 'laion2b_s13b_b82k_augreg'
 
 # CLIP_MODEL_NAME: str = 'RN50x64'
 # CLIP_MODEL_WEIGHTS_NAME: str = 'openai'
@@ -49,5 +57,8 @@ MODEL_TYPE: str = "vit_b"
 
 
 FOODSEG103_ROOT: Path = Path('./data/FoodSeg103')
+UECFOODPIXCOMPLETE_ROOT: Path = Path('./data/UECFoodPixComplete')
 
 PRINT_RESULTS_EVERY_N_STEPS: int = 10
+
+FOOD50SEG_PASSWORD: str | None = os.getenv("FOOD50SEG_PASSWORD")

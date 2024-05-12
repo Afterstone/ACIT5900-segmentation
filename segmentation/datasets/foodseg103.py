@@ -5,51 +5,44 @@ import shutil
 import subprocess
 import tempfile
 import typing as t
-from calendar import c
-from curses import meta
-from json import load
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd  # type: ignore
 import PIL.Image as PIL_Image  # type: ignore
-import requests  # type: ignore
 import torch as T
 import torchvision.transforms as TV_trfs  # type: ignore
-from torch.utils.data import Dataset
 from tqdm import tqdm  # type: ignore
 
+from ._base import (AbstractSegmentationDataset, download_file,
+                    get_deterministic_permutation)
 
-class FoodSegDataset(Dataset):
+
+class FoodSegDataset(AbstractSegmentationDataset):
     def __init__(self, _load_check: bool = True):
-        super().__init__()
+        super().__init__(_load_check=_load_check)
 
         if _load_check:
             raise Exception("Please load data using the SegFoodDataset.load_* methods")
-
-        self.split_name: str  # type: ignore
-        self.category_df: pd.DataFrame  # type: ignore
-        self.image_paths: t.List[Path]  # type: ignore
-        self.annotations_paths: t.List[Path]  # type: ignore
-        self.img_sizes: t.List[t.Tuple[int, int]]  # type: ignore
-        self.X: T.Tensor = T.tensor([])  # type: ignore
-        self.y: T.Tensor = T.tensor([])  # type: ignore
 
     @classmethod
     def load_data(
         cls,
         root: Path,
-        train: bool = True,
+        tensor_size: t.Tuple[int, int] = (256, 256),
+        split_name: str | None = None,
         load_first_n: int | None = None,
         load_subset_by_index: set[int] | None = None,
-        tensor_size: t.Tuple[int, int] = (256, 256),
-    ) -> FoodSegDataset:
+    ) -> AbstractSegmentationDataset:
         dataset = cls(_load_check=False)
-        dataset.split_name = 'train' if train else 'test'
+
+        if split_name is None:
+            raise ValueError('split_name must be provided for the FoodSeg103 dataset')
+        dataset.split_name = split_name
 
         category_file = root / 'category_id.txt'
-        dataset.category_df = pd.read_csv(category_file, sep='\t', header=None, names=['id', 'category'])
+        df_category = pd.read_csv(category_file, sep='\t', header=None, names=['id', 'category'])
+        dataset.categories = {row['id']: row['category'] for _, row in df_category.iterrows()}
 
         image_folder = root / 'Images' / 'img_dir' / dataset.split_name
         dataset.image_paths = sorted(list(image_folder.glob('*.jpg')))
@@ -70,7 +63,6 @@ class FoodSegDataset(Dataset):
         if len(ip) == 0 or len(ip) != len(ap) or ip != ap:
             raise ValueError('Image and annotation files do not match')
 
-        dataset.img_sizes = []
         Xs = []
         ys = []
 
@@ -82,8 +74,6 @@ class FoodSegDataset(Dataset):
             progbar.update(1)
             with PIL_Image.open(img_path) as img, PIL_Image.open(ann_path) as ann:
                 try:
-                    dataset.img_sizes.append(img.size)
-
                     if img.size != ann.size:
                         raise ValueError(
                             f'Image and annotation sizes do not match, img: {img.size}, ann: {ann.size}')
@@ -115,7 +105,7 @@ class FoodSegDataset(Dataset):
         return dataset
 
     @classmethod
-    def load_pickle(cls, folder: Path) -> FoodSegDataset:
+    def load_pickle(cls, folder: Path) -> AbstractSegmentationDataset:
         dataset = cls(_load_check=False)
         if not folder.exists():
             raise ValueError(f'Folder {folder} does not exist')
@@ -126,10 +116,9 @@ class FoodSegDataset(Dataset):
 
         with open(pickle_path, 'rb') as f:
             metadata = pickle.load(f)
-        dataset.category_df = metadata['category_df']
+        dataset.categories = metadata['categories']
         dataset.image_paths = metadata['image_paths']
         dataset.annotations_paths = metadata['annotations_paths']
-        dataset.img_sizes = metadata['img_sizes']
         dataset.X = T.load(pickle_path.parent / metadata['X_path'])
         dataset.y = T.load(pickle_path.parent / metadata['y_path'])
 
@@ -138,10 +127,9 @@ class FoodSegDataset(Dataset):
     def dump_pickle(self, folder: Path) -> None:
         folder.mkdir(parents=True, exist_ok=True)
         metadata = {
-            'category_df': self.category_df,
+            'categories': self.categories,
             'image_paths': self.image_paths,
             'annotations_paths': self.annotations_paths,
-            'img_sizes': self.img_sizes,
             'X_path': f'X_{self.split_name}.pt',
             'y_path': f'y_{self.split_name}.pt',
         }
@@ -156,33 +144,16 @@ class FoodSegDataset(Dataset):
     def __getitem__(self, idx: int) -> t.Tuple[T.Tensor, T.Tensor]:
         return self.X[idx], self.y[idx]
 
+    def get_cat_ids_from_annotation_masks(self, annotation_masks: T.Tensor) -> list[int]:
+        cat_ids = annotation_masks.ravel().unique().squeeze()
+        return [int(i) for i in cat_ids]
 
-def _download(
-    url: str,
-    destination: Path,
-    chunk_size: int = 1024,
-    filename: str | None = None,
-) -> None:
-    destination.mkdir(parents=True, exist_ok=True)
-    if filename is None:
-        save_path = destination / url.split('/')[-1]
-    else:
-        save_path = destination / filename
-
-    with open(save_path, 'wb') as fd:
-        r = requests.get(url, stream=True)
-        total_size = int(r.headers.get('content-length', 0))
-        progress_bar = tqdm(total=total_size, unit='B', unit_scale=True)
-        for chunk in r.iter_content(chunk_size=chunk_size):
-            fd.write(chunk)
-            progress_bar.update(len(chunk))
-        progress_bar.close()
-
-
-def get_deterministic_permutation(n: int, seed: int) -> set[int]:
-    generator = T.Generator().manual_seed(42)
-    permutation = set(T.randperm(n, generator=generator).tolist())
-    return permutation
+    def get_sparse_annotation_masks(self, annotation_masks: T.Tensor) -> dict[int, T.Tensor]:
+        masks: dict[int, T.Tensor] = {}
+        indices = [int(i) for i in self.get_cat_ids_from_annotation_masks(annotation_masks)]
+        for i in indices:
+            masks[i] = (annotation_masks == i).float()
+        return masks
 
 
 def main(
@@ -190,10 +161,13 @@ def main(
     temp_dir: Path = Path('./temp/'),
     password: str = 'LARCdataset9947',
 ):
-    zip_filename = "FoodSeg103.zip"
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True)
-        _download(
+
+    zip_filename = 'FoodSeg103.zip'
+    zip_location = temp_dir / zip_filename
+    if not zip_location.exists():
+        download_file(
             url='https://research.larc.smu.edu.sg/downloads/datarepo/FoodSeg103.zip',
             destination=temp_dir,
             filename=zip_filename,
@@ -201,7 +175,6 @@ def main(
 
     dest_dir_foodseg = dest_dir / 'FoodSeg103'
     if not dest_dir_foodseg.exists():
-        zip_location = temp_dir / zip_filename
         with tempfile.TemporaryDirectory() as tmp_dir:
             res = subprocess.run(
                 ['unzip', '-P', password, str(zip_location), '-d', str(tmp_dir)],
@@ -213,13 +186,13 @@ def main(
             shutil.move(Path(tmp_dir) / 'FoodSeg103', dest_dir)
         print()
 
-    ds_train = FoodSegDataset.load_data(dest_dir_foodseg, train=True)
+    ds_train = FoodSegDataset.load_data(dest_dir_foodseg, split_name='train')
     ds_train.dump_pickle(dest_dir_foodseg / 'processed_train')
     del ds_train
     ds_train = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_train')
     del ds_train
 
-    ds_test = FoodSegDataset.load_data(dest_dir_foodseg, train=False)
+    ds_test = FoodSegDataset.load_data(dest_dir_foodseg, split_name='test')
     ds_test.dump_pickle(dest_dir_foodseg / 'processed_test')
     del ds_test
     ds_test = FoodSegDataset.load_pickle(dest_dir_foodseg / 'processed_test')
@@ -227,7 +200,7 @@ def main(
 
     ds_train_subset = FoodSegDataset.load_data(
         dest_dir_foodseg,
-        train=True,
+        split_name='train',
         load_subset_by_index=get_deterministic_permutation(2_000, 42),
     )
     ds_train_subset.dump_pickle(dest_dir_foodseg / 'processed_train_subset')

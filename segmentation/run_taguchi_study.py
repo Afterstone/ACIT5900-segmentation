@@ -8,7 +8,8 @@ from regex import P  # type: ignore
 
 import segmentation.config as config
 import segmentation.sscx as sscx
-from segmentation.datasets.foodseg103 import FoodSegDataset
+from segmentation.datasets import (AbstractSegmentationDataset, FoodSegDataset,
+                                   UECFoodPixComplete)
 
 
 class TaguchiParameter:
@@ -66,6 +67,7 @@ def main(
     results_dir: Path,
     model_dir: Path,
     dataset_tag: str,
+    dataset: AbstractSegmentationDataset,
     n_iterations: int,
 ):
     # Strata parameters
@@ -90,17 +92,17 @@ def main(
         else:
             study = TaguchiArrayBuilder(ta_path)
             # Taguchi parameters
+            study.add_param(TaguchiParameter('CLIP_NORMALIZE_ATTENTION', 2,
+                            ['none', 'standard', 'softmax', 'percentile']))
+            study.add_param(TaguchiParameter('XAI_METHOD', 1, ['gradcampp', 'gradcam', 'uniform', 'layercam']))
             study.add_param(TaguchiParameter('CLIP_MODEL_PARAMS', 0, [
                 {'model': 'convnext_xxlarge', 'weights': 'laion2b_s34b_b82k_augreg'},
+                {'model': 'RN101', 'weights': 'openai'},
                 {'model': 'convnext_base_w', 'weights': 'laion2b_s13b_b82k_augreg'},
                 {'model': 'RN50', 'weights': 'openai'},
-                {'model': 'RN101', 'weights': 'openai'},
             ]))
-            study.add_param(TaguchiParameter('XAI_METHOD', 1, ['uniform', 'gradcam', 'gradcampp', 'layercam']))
-            study.add_param(TaguchiParameter('CLIP_NORMALIZE_ATTENTION', 2,
-                            ['standard', 'none', 'softmax', 'percentile']))
-            study.add_param(TaguchiParameter('SAM_PROPOSER_N_POINTS', 3, [1, 3, 9, 16]))
-            study.add_param(TaguchiParameter('SAM_PROPOSER_NORM', 4, [1, 2, 3, 4]))
+            study.add_param(TaguchiParameter('SAM_PROPOSER_NORM', 4, [2, 4, 3, 1]))
+            study.add_param(TaguchiParameter('SAM_PROPOSER_N_POINTS', 3, [9, 1, 16, 3]))
 
             trials = [
                 {
@@ -111,12 +113,12 @@ def main(
                 for i in range(len(study))
             ]
 
+            json_path.parent.mkdir(parents=True, exist_ok=True)
             with open(json_path, 'w') as f:
                 json.dump(trials, f, indent=2, sort_keys=True)
 
         studies[SAM_MODEL] = trials
 
-    dataset = FoodSegDataset.load_pickle(config.FOODSEG103_ROOT / dataset_tag)
     for SAM_MODEL, trials in studies.items():
         json_path = results_dir / Path(f'{dataset_tag}_{SAM_MODEL}.json')
         print(f'Running {SAM_MODEL}')
@@ -165,10 +167,20 @@ def main(
 
 
 if __name__ == '__main__':
+    # main(
+    #     ta_path=Path('taguchi_designs/L16B.csv'),
+    #     results_dir=Path('studies/taguchi/foodseg103/'),
+    #     model_dir=Path('models'),
+    #     dataset_tag='FoodSegDataset.processed_test',
+    #     dataset=FoodSegDataset.load_pickle(Path('data/foodseg103/processed_train_subset')),
+    #     n_iterations=5,
+    # )
+
     main(
         ta_path=Path('taguchi_designs/L16B.csv'),
-        results_dir=Path('results'),
+        results_dir=Path('studies/taguchi/UECFoodPixComplete/'),
         model_dir=Path('models'),
-        dataset_tag='processed_train_subset',
+        dataset_tag='UECFoodPixComplete.processed_train_subset_1000',
+        dataset=UECFoodPixComplete.load_pickle(Path('data/UECFoodPixComplete/processed_train_subset_1000')),
         n_iterations=5,
     )

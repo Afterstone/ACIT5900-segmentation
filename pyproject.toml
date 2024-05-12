@@ -36,6 +36,8 @@ torchvision = "^0.16.2"
 tqdm = "^4.66.2"
 xgboost = "^2.0.3"
 umap-learn = "^0.5.6"
+types-requests = "^2.31.0.20240406"
+python-dotenv = "^1.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
