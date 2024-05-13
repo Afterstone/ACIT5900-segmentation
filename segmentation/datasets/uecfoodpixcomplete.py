@@ -195,11 +195,17 @@ def main(
 
         print()
 
-    # ds_test = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='test')
-    # ds_test.dump_pickle(dest_dir_uecfpc / 'processed_test')
-    # del ds_test
-    # ds_test = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_test')
-    # del ds_test
+    ds_test = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='test')
+    ds_test.dump_pickle(dest_dir_uecfpc / 'processed_test')
+    del ds_test
+    ds_test = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_test')
+    del ds_test
+
+    ds_train = UECFoodPixComplete.load_data(dest_dir_uecfpc, split_name='train')
+    ds_train.dump_pickle(dest_dir_uecfpc / 'processed_train')
+    del ds_train
+    ds_train = UECFoodPixComplete.load_pickle(dest_dir_uecfpc / 'processed_train')
+    del ds_train
 
     subset_size = 1_000
     ds_train_subset = UECFoodPixComplete.load_data(
